@@ -10,9 +10,11 @@ compliant Grace implementation.
 Status
 ------
 
-The latest release is reflected by the `master` branch [![Build
-Status](https://travis-ci.com/gracelang/Moth.svg?branch=master)](https://t
-ravis-ci.com/gracelang/Moth).
+Active development of Moth is currently happening on the [moth-SOMns](https://github.com/gracelang/moth-SOMns) repo.
+
+The latest runnable version is reflected by the `moth` branch [![Build Status](https://travis-ci.com/gracelang/moth-SOMns.svg?branch=moth)](https://travis-ci.com/github/gracelang/moth-SOMns).
+
+Changes and releases are documented in our [CHANGELOG.md][cl].
 
 Although we are working toward a fully compliant Grace implementation, Moth
 doesn't yet implement all of Grace's features. Nonetheless, Moth's peak
@@ -106,118 +108,8 @@ For example, executing:
 ./moth grace-lib/Benchmarks/harness.grace grace-lib/Benchmarks/List.grace 100 50
 ```
 
-
-SOMns - A Simple Newspeak Implementation
-========================================
-
-Introduction
-------------
-
-Newspeak is a dynamic, class-based, object-oriented language in the
-tradition of Smalltalk and Self. SOMns is an implementation of the [Newspeak
-Specification Version 0.0.95][spec] derived from the [SOM][SOM] (Simple Object
-Machine) class libraries, and based on [TruffleSOM][TSOM]. It is
-implemented using the [Truffle framework][T] and runs on the JVM platform.
-
-Truffle provides just-in-time compilation based on the Graal compiler,
-which enables SOMns to reach [performance that is on par][AWFY] with
-state-of-the-art VMs for dynamic languages, including V8.
-
-A simple Hello World program looks like:
-
-```Smalltalk
-class Hello usingPlatform: platform = (
-  public main: platform args: args = (
-    'Hello World!' println.
-    ^ 0
-  )
-)
-```
-
-Obtaining and Running SOMns
----------------------------
-
-The basic requirements for SOMns are a system with Java 9 or later, git, ant,
-and Python. Windows is currently not supported, but we test on Linux and macOS.
-
-To checkout the code:
-
-    git clone https://github.com/smarr/SOMns.git
-
-Then, SOMns can be build with Ant:
-
-    ant compile
-
-Afterwards, the simple Hello World program is executed with:
-
-    ./som core-lib/Hello.ns
-
-To get an impression of the benefit o
-
-For testing on the command line, the full command is
-`./som core-lib/Benchmarks/Harness.ns Mandelbrot 500 0 500`
-
-Additionally, there are JUnit tests and `ant test` for executing the test suite.
-
-
-A more comprehensive setup guide is available in the `docs` folder and on
-[ReadTheDocs][RTD].
-
-
-Implementation and Deviations from the Specification
-----------------------------------------------------
-
-Compared to other Newspeaks and Smalltalks, it is completely file-based
-and does not have support for images.
-Instead of using customary bytecodes, SOMns is implemented as
-[self-optimizing AST interpreter][SOAI] using the Truffle framework.
-
-The overall goal is to be compliant with the specification, but include only
-absolutely necessary features. The current list of intended deviations from
-the specifications are as follows:
-
- - the mixin support of slots is not yet complete, see deactivate tests in core-lib/TestSuite/MixinTests.ns
-
- - simultaneous slots clauses are not fully supported (spec. 6.3.2)
-
- - object literals currently require a keyword prefix `objL`, to work around
-   parser limitations
-
-
-License and Author Information
-------------------------------
-
-This code is distributed under the MIT License. Please see the LICENSE file for
-details. All contributions to the project are implicitly assumed to be under the
-MIT License. If this is not desired, we ask that it is stated explicitly.
-Information on previous authors are included in the AUTHORS file.
-
-Setup Development Environment with Eclipse and VS Code
-------------------------------------------------------
-
-SOMns code is best written using our VS Code plugin, which provides support
-for typical IDE features such as code navigation and compilation, as well as
-a debugger. The [SOMns][vscode] support can then be installed via the Marketplace.
-
-For the development of SOMns itself, we typically use Eclipse.
-A complete guide on how to setup a workspace is available in the `docs` folder
-and on [ReadTheDocs][RTD].
-
-
-Development Status
-------------------
-
-Active development of SOMns happens on the `dev` branch [![Build Status](https://travis-ci.org/smarr/SOMns.png?branch=dev)](https://travis-ci.org/smarr/SOMns/tree/dev).
-
-The latest release is reflected by the `release` branch [![Build Status](https://travis-ci.org/smarr/SOMns.png?branch=release)](https://travis-ci.org/smarr/SOMns).
-
-Changes and releases are documented in our [CHANGELOG.md][cl].
-
 Academic Work
 -------------
-
-SOMns is designed as platform for research with a special interest for
-concurrent programming models, their interactions, and tooling for debugging.
 
 Related papers:
 
