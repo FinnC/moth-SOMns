@@ -1,12 +1,12 @@
-# The `som` Launcher Script
+# The `moth` Launcher Script
 
-To document, simplify, and standardize how SOMns is started or debugged, we
-use a Python script to execute the actual Java program.
+To document, simplify, and standardize how Moth is started or debugged, we
+use a Python script to execute the `som` Python script with the `--moth` option, which in turn executes the actual Java program.
 
 The Python script manages various command-line parameters and selects the JVM
 to be used for execution.
 
-Below, we see that `./som --help` supports a large set of options, of which we
+Below, we see that `./moth --help` supports a large set of options, of which we
 detail only a few.
 
 The basic options include `-d` to allow us to attach a Java debugger, for instance
@@ -22,7 +22,7 @@ dynamic execution metrics, or interactive debugging of SOMns code
 (currently called 'web debugger' `-wd`).
 
 ```
-$ ./som --help
+$ ./moth --help
 usage: som [-h] [-d] [-t THREADS] [-p SOM_PLATFORM] [-k SOM_KERNEL] [-dnu]
            [-i] [-if] [-io ONLY_IGV] [-l] [-ti] [-w] [-f] [-v] [-gp] [-ga]
            [-gi] [-gb] [-tp] [-td] [-wd] [-dm] [-at]

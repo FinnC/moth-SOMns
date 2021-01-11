@@ -23,5 +23,4 @@ release.
 6. Push the commit that is tagged as release to the `release` branch.
 
 7. Announce the release
-  - https://groups.google.com/forum/#!forum/som-dev
-  - https://twitter.com/SOM_VMs
+
