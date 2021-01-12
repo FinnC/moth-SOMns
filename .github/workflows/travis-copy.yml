@@ -54,12 +54,13 @@ jobs:
                 sudo: true
             #before_script:
             #    - |
-                run: sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF 
-                     sudo apt install apt-transport-https 
-                     echo "deb https://download.mono-project.com/repo/ubuntu stable-trusty main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list 
-                     sudo apt update -qq 
-                     sudo apt install mono-devel -y
-                     sudo pip install git+https://github.com/smarr/ReBench.git
+                steps:
+                    - run: sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF 
+                    - run: sudo apt install apt-transport-https 
+                    - run: echo "deb https://download.mono-project.com/repo/ubuntu stable-trusty main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list 
+                    - run: sudo apt update -qq 
+                    - run: sudo apt install mono-devel -y
+                    - run: sudo pip install git+https://github.com/smarr/ReBench.git
           script:
             - |
              ant compile-moth
