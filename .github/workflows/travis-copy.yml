@@ -61,46 +61,51 @@ jobs:
                     - run: sudo apt update -qq 
                     - run: sudo apt install mono-devel -y
                     - run: sudo pip install git+https://github.com/smarr/ReBench.git
-          script:
+          #script:
+          #  - |
+                    - run: ant compile-moth
+                    - run: ./moth -tc grace-lib/hello.grace 
+                    - run: ./moth -tc grace-lib/Tests/testRunner.grace 
+                    - run: rebench -B -S codespeed.conf grace-tests
+  #before_install:
+          run:
             - |
-             ant compile-moth
-             ./moth -tc grace-lib/hello.grace 
-             ./moth -tc grace-lib/Tests/testRunner.grace 
-             rebench -B -S codespeed.conf grace-tests
-  before_install:
-    - |
-     run() {
-       ID=`echo "$@" | sed -e 's/ /_/g'`
-       STR=`echo "$@"`
-       printf "travis_fold:start:$ID\n$STR\n"
-       eval "$@"
-       RESULT_EVAL=$?
-       printf "travis_fold:end:$ID\n"
-       return $RESULT_EVAL
-     }
-     if [ "$TRAVIS_OS_NAME" = "osx" ]
-     then
-       brew update
-       brew install ant
-     fi
-  install: |
-    printf "travis_fold:start:downloads\nLoad JDK and/or Eclipse\n"
-    if [ "$TASK" = "checkstyle" ]
-    then
-      export ECLIPSE_TAR=eclipse.tar.gz
-      export ECLIPSE_URL=http://archive.eclipse.org/eclipse/downloads/drops4/R-4.6.3-201703010400/eclipse-SDK-4.6.3-linux-gtk-x86_64.tar.gz
-      wget --progress=bar:force ${ECLIPSE_URL} -O ${ECLIPSE_TAR}
-      tar -C ${TRAVIS_BUILD_DIR}/.. -xzf ${ECLIPSE_TAR}
-      export ECLIPSE_EXE=${TRAVIS_BUILD_DIR}/../eclipse/eclipse
-    fi
-    export ANT="ant -e"
-    printf "travis_fold:end:downloads\n"
-  script:
-    - if [ "$TASK" = "core-tests"    ]; then $ANT core-tests    && $ANT serialization-tests && $ANT coverage; fi
-    - if [ "$TASK" = "checkstyle"    ]; then $ANT checkstyle    && $ANT eclipseformat-check && run cd tools/kompos && nvm install 7 && run npm install && run npm run lint; fi
-    - if [ "$TASK" = "kompos-tests"  ]; then run nvm install 8  && $ANT compile-all && cd tools/kompos  && run npm -s run verify && run npm test; fi
-    - if [ "$TASK" = "replay1-tests" ]; then $ANT compile       && run ./tests/replay/test.sh 1; fi
-    - if [ "$TASK" = "replay2-tests" ]; then $ANT compile       && run ./tests/replay/test.sh 2; fi
-    - if [ "$TASK" = "snapshot-tests" ]; then $ANT compile      && run ./tests/snapshot/test.sh; fi
-    - if [ "$TASK" = "unit-tests"    ]; then $ANT compile       && run ./som core-lib/TestSuite/TestRunner.ns; fi
-    - if [ "$TASK" = "native"        ]; then $ANT native; fi
+             run() {
+               ID=`echo "$@" | sed -e 's/ /_/g'`
+               STR=`echo "$@"`
+               printf "travis_fold:start:$ID\n$STR\n"
+               eval "$@"
+               RESULT_EVAL=$?
+               printf "travis_fold:end:$ID\n"
+               return $RESULT_EVAL
+             }
+             if [ "$TRAVIS_OS_NAME" = "osx" ]
+             then
+               brew update
+               brew install ant
+             fi
+#install: |
+        run:
+            - |
+                printf "travis_fold:start:downloads\nLoad JDK and/or Eclipse\n"
+                if [ "$TASK" = "checkstyle" ]
+                then
+                  export ECLIPSE_TAR=eclipse.tar.gz
+                  export ECLIPSE_URL=http://archive.eclipse.org/eclipse/downloads/drops4/R-4.6.3-201703010400/eclipse-SDK-4.6.3-linux-gtk-x86_64.tar.gz
+                  wget --progress=bar:force ${ECLIPSE_URL} -O ${ECLIPSE_TAR}
+                  tar -C ${TRAVIS_BUILD_DIR}/.. -xzf ${ECLIPSE_TAR}
+                  export ECLIPSE_EXE=${TRAVIS_BUILD_DIR}/../eclipse/eclipse
+                fi
+                export ANT="ant -e"
+                printf "travis_fold:end:downloads\n"
+  #script:
+        run:
+          - |
+            - if [ "$TASK" = "core-tests"    ]; then $ANT core-tests    && $ANT serialization-tests && $ANT coverage; fi
+            - if [ "$TASK" = "checkstyle"    ]; then $ANT checkstyle    && $ANT eclipseformat-check && run cd tools/kompos && nvm install 7 && run npm install && run npm run lint; fi
+            - if [ "$TASK" = "kompos-tests"  ]; then run nvm install 8  && $ANT compile-all && cd tools/kompos  && run npm -s run verify && run npm test; fi
+            - if [ "$TASK" = "replay1-tests" ]; then $ANT compile       && run ./tests/replay/test.sh 1; fi
+            - if [ "$TASK" = "replay2-tests" ]; then $ANT compile       && run ./tests/replay/test.sh 2; fi
+            - if [ "$TASK" = "snapshot-tests" ]; then $ANT compile      && run ./tests/snapshot/test.sh; fi
+            - if [ "$TASK" = "unit-tests"    ]; then $ANT compile       && run ./som core-lib/TestSuite/TestRunner.ns; fi
+            - if [ "$TASK" = "native"        ]; then $ANT native; fi
