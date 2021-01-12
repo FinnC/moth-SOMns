@@ -1,11 +1,19 @@
 name: travis-copy
 on: push
 jobs:
-    run-java:
-      runs-on: ubuntu-latest
+    ##run-java:
+    ##  runs-on: ubuntu-latest
   #language: java
-    jdk:
-      - oraclejdk8
+    #jdk:
+    #  - oraclejdk8
+    steps:
+        - uses: actions/checkout@v2
+        - uses: actions/setup-java@v1
+          with:
+            java-version: '1.8.0' # The JDK version to make available on the path.
+            java-package: jdk # (jre, jdk, or jdk+fx) - defaults to jdk
+            architecture: x64 # (x64 or x86) - defaults to x64
+             
     dist: trusty
     sudo: false
     env:
@@ -44,14 +52,14 @@ jobs:
 
               - name: Test Moth
                 sudo: true
-            before_script: 
+            before_script:
                 - |
                  sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF 
                  sudo apt install apt-transport-https 
                  echo "deb https://download.mono-project.com/repo/ubuntu stable-trusty main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list 
                  sudo apt update -qq 
                  sudo apt install mono-devel -y
-                 sudo pip install git+"https://github.com/smarr/ReBench.git"
+                 #sudo pip install git+https://github.com/smarr/ReBench.git
               script:
                 - |
                  ant compile-moth
