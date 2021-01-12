@@ -51,7 +51,7 @@ jobs:
                  echo "deb https://download.mono-project.com/repo/ubuntu stable-trusty main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list 
                  sudo apt update -qq 
                  sudo apt install mono-devel -y
-                 sudo pip install git+https://github.com/smarr/ReBench.git
+                 sudo pip install git+"https://github.com/smarr/ReBench.git"
               script:
                 - |
                  ant compile-moth
