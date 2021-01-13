@@ -8,23 +8,81 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-test:
     strategy:
+      fail-fast: false
       matrix:
-        os: [value1, ...valueN]
+        os: [ubuntu-latest]
+        jdk: [8]
+        task: [core-tests, checkstyle, kompos-tests, native, moth-codespeed] # replay1-tests, replay2-tests, snapshot-tests
+        include:
+          - jdk: 11
+            task: unit-tests
+            
+          - os: macos-latest
+            jdk: 11
+            task: unit-tests
+           
+    runs-on: ${{ matrix.os }}
+    
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE
-      - uses: actions/checkout@v2
-
-      - name: Set up JDK 11
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        
+      # Sets up JDK according to matrix
+      - name: Set up JDK
         uses: actions/setup-java@v1
         with:
-          java-version: 11
+          java-version: ${{ matrix.jdk }}
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      # Sets up OSX for testing
+      - name: Pre-install
+        env:
+          ACTIONS_OS: ${{ matrix.os }}
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
- 
+          if [ "$ACTIONS_OS" = "macos-latest" ]
+          then
+            brew update
+            brew install ant
+          fi
+      
+      # Installs Eclipse for checkstyle and sets up Ant run command env
+      - name: Install
+        env:
+          ACTIONS_TASK: ${{ matrix.task }}
+        run: |
+          if [ "$ACTIONS_TASK" = "checkstyle" ]
+          then
+            export ECLIPSE_TAR=eclipse.tar.gz
+            export ECLIPSE_URL=http://archive.eclipse.org/eclipse/downloads/drops4/R-4.6.3-201703010400/eclipse-SDK-4.6.3-linux-gtk-x86_64.tar.gz
+            wget --progress=bar:force ${ECLIPSE_URL} -O ${ECLIPSE_TAR}
+            tar -C ${GITHUB_WORKSPACE}/.. -xzf ${ECLIPSE_TAR}
+            export ECLIPSE_EXE=${GITHUB_WORKSPACE}/../eclipse/eclipse
+          fi
+          export ANT="ant -e"
+          
+      - name: Build and testing
+        env:
+          ACTIONS_TASK: ${{ matrix.task }} 
+        run: |
+          if [ "$TASK" = "core-tests"    ]; then $ANT core-tests    && $ANT serialization-tests && $ANT coverage; fi
+          if [ "$TASK" = "checkstyle"    ]; then $ANT checkstyle    && $ANT eclipseformat-check && run cd tools/kompos && nvm install 7 && run npm install && run npm run lint; fi
+          if [ "$TASK" = "kompos-tests"  ]; then run nvm install 8  && $ANT compile-all && cd tools/kompos  && run npm -s run verify && run npm test; fi
+          if [ "$TASK" = "replay1-tests" ]; then $ANT compile       && run ./tests/replay/test.sh 1; fi
+          if [ "$TASK" = "replay2-tests" ]; then $ANT compile       && run ./tests/replay/test.sh 2; fi
+          if [ "$TASK" = "snapshot-tests" ]; then $ANT compile      && run ./tests/snapshot/test.sh; fi
+          if [ "$TASK" = "native"        ]; then $ANT native; fi
+          if [ "$TASK" = "unit-tests"    ]; then $ANT compile       && run ./som core-lib/TestSuite/TestRunner.ns; fi
+          if [ "$TASK" = "moth-codespeed" ]; then
+            sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF 
+            sudo apt install apt-transport-https 
+            echo "deb https://download.mono-project.com/repo/ubuntu stable-trusty main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list 
+            sudo apt update -qq 
+            sudo apt install mono-devel -y
+            sudo pip install git+https://github.com/smarr/ReBench.git
+            ant compile-moth
+            ./moth -tc grace-lib/hello.grace 
+            ./moth -tc grace-lib/Tests/testRunner.grace 
+            rebench -B -S codespeed.conf grace-tests
+          fi
