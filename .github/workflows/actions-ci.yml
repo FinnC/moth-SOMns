@@ -16,7 +16,8 @@ jobs:
         jdk: [8]
         task: [core-tests, checkstyle, kompos-tests, native, moth-codespeed] # replay1-tests, replay2-tests, snapshot-tests
         include:
-          - jdk: 11
+          - os: ubuntu-latest
+            jdk: 11
             task: unit-tests
             
           - os: macos-latest
