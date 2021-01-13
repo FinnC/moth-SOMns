@@ -13,7 +13,7 @@ jobs:
         #    secure: I4ZII92TFLy6vlyX98ns7BaFwA4Qo/o7Av2fnUQW6FfW13EF7Taregu20BIYFFMsiigXCAtvPjqH4HVLpZgK6gZXhbCuI8kl15ZsfRWXcgGSfGZw2De8YS845+QXjc0fq0i46IAVWIey/ImfJrmP7aqjQfWS3XRRpz1kVf7A3/UYghn4GYfJ4VvCglU+LI6qa5lbEXeZAWR0Ndelhuwj7cBSWlLNM2PEmhnf4FsOVQ986S0nmlmjybkYu2NmO+tBmoydjLr5cLt3U9maiLruJ/01ebxfML37W1GOGRUqkSc2G95TohKyiTkluL/HqBMiXXD7cXkuldpTLREnrdQqImyvqu5nq0Tr8vOjJ776LCHDFHv//CkBF1W8n7H9QHwEQonq+Hu2iPOec23Os0b1SlqLVc+1Fy88G7KkvFN430ugiJBzW5+Qk9TUE8CBwL4FixeO3nv0UYleigjGgrpYRL+yWPqwxEMQAWZN6W2YGY10rPYT0eooukEbmNphWzz/vFO4UCphMSMt6SLoN7r3br7DYLRUevdK8vrIUb1LUQPGMYf7WIdMnckme7y+oJ3SR2YO6+vs3EyQsF1AdJqpbvag0/AbWHFVi2vfwrvKZwperPLtXE+EXh8B+Ck62gcYsTyUuMpoEws/+DqHUFByOgDbPDFBmFYwPWCoZh4h3Rw=
 
     build:
-        runs-on: ubuntu-14.04
+        runs-on: ubuntu-latest #ubuntu-14.04
         #language: java
         #jdk:
         #  - oraclejdk8
@@ -53,7 +53,7 @@ jobs:
               #  sudo: true
 
     before_script:
-        runs-on: ubuntu-14.04
+        runs-on: ubuntu-latest
         steps:
             - run: sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF 
             - run: sudo apt install apt-transport-https 
@@ -62,14 +62,14 @@ jobs:
             - run: sudo apt install mono-devel -y
             - run: sudo pip install git+https://github.com/smarr/ReBench.git
     script:
-        runs-on: ubuntu-14.04
+        runs-on: ubuntu-latest
         steps:
             - run: ant compile-moth
             - run: ./moth -tc grace-lib/hello.grace 
             - run: ./moth -tc grace-lib/Tests/testRunner.grace 
             - run: rebench -B -S codespeed.conf grace-tests
     before_install:
-        runs-on: ubuntu-14.04
+        runs-on: ubuntu-latest
         steps:
             - run:
                  run() {
@@ -87,7 +87,7 @@ jobs:
                    brew install ant
                  fi
     install:
-        runs-on: ubuntu-14.04
+        runs-on: ubuntu-latest
         steps:
             - run:
                 printf "travis_fold:start:downloads\nLoad JDK and/or Eclipse\n"
