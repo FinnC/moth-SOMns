@@ -66,6 +66,7 @@ jobs:
       - name: Build and testing
         env:
           ACTIONS_TASK: ${{ matrix.task }} 
+          ANT: ant -e
         run: |
           if [ "$ACTIONS_TASK" = "core-tests"    ]; then $ANT core-tests    && $ANT serialization-tests && $ANT coverage; fi
           if [ "$ACTIONS_TASK" = "checkstyle"    ]; then $ANT checkstyle    && $ANT eclipseformat-check && run cd tools/kompos && nvm install 7 && run npm install && run npm run lint; fi
