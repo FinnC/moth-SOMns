@@ -71,21 +71,19 @@ jobs:
     before_install:
         runs-on: ubuntu-latest
         steps:
-            - run:
-                 run() {
-                   ID=`echo "$@" | sed -e 's/ /_/g'`
-                   STR=`echo "$@"`
-                   printf "travis_fold:start:$ID\n$STR\n"
-                   eval "$@"
-                   RESULT_EVAL=$?
-                   printf "travis_fold:end:$ID\n"
-                   return $RESULT_EVAL
-                 }
-                 if [ "$TRAVIS_OS_NAME" = "osx" ]
-                 then
-                   brew update
-                   brew install ant
-                 fi
+            - run: #run() {
+                ID=`echo "$@" | sed -e 's/ /_/g'`
+                STR=`echo "$@"`
+                printf "travis_fold:start:$ID\n$STR\n"
+                eval "$@"
+                RESULT_EVAL=$?
+                printf "travis_fold:end:$ID\n"
+                return $RESULT_EVAL
+                if [ "$TRAVIS_OS_NAME" = "osx" ]
+                then
+                  brew update
+                  brew install ant
+                fi
     install:
         runs-on: ubuntu-latest
         steps:
