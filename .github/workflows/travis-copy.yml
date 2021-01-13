@@ -104,11 +104,42 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - run:
-                if [ "$TASK" = "core-tests"    ] then $ANT core-tests    && $ANT serialization-tests && $ANT coverage fi
-                if [ "$TASK" = "checkstyle"    ] then $ANT checkstyle    && $ANT eclipseformat-check && run cd tools/kompos && nvm install 7 && run npm install && run npm run lint fi
-                if [ "$TASK" = "kompos-tests"  ] then run nvm install 8  && $ANT compile-all && cd tools/kompos  && run npm -s run verify && run npm test fi
-                if [ "$TASK" = "replay1-tests" ] then $ANT compile       && run ./tests/replay/test.sh 1 fi
-                if [ "$TASK" = "replay2-tests" ] then $ANT compile       && run ./tests/replay/test.sh 2 fi
-                if [ "$TASK" = "snapshot-tests" ] then $ANT compile      && run ./tests/snapshot/test.sh fi
-                if [ "$TASK" = "unit-tests"    ] then $ANT compile       && run ./som core-lib/TestSuite/TestRunner.ns fi
-                if [ "$TASK" = "native"        ] then $ANT native; fi
+                if [ "$TASK" = "core-tests"    ] 
+                then 
+                  $ANT core-tests && $ANT serialization-tests && $ANT coverage 
+                fi
+            - run:
+                if [ "$TASK" = "checkstyle"    ] 
+                then 
+                  $ANT checkstyle && $ANT eclipseformat-check && run cd tools/kompos && nvm install 7 && run npm install && run npm run lint 
+                fi
+            - run:
+                if [ "$TASK" = "kompos-tests" ] 
+                then 
+                  run nvm install 8  && $ANT compile-all && cd tools/kompos  && run npm -s run verify && run npm test 
+                fi
+            - run:
+                if [ "$TASK" = "replay1-tests" ] 
+                then 
+                  $ANT compile && run ./tests/replay/test.sh 1 
+                fi
+            - run:
+                if [ "$TASK" = "replay2-tests" ] 
+                then 
+                  $ANT compile && run ./tests/replay/test.sh 2 
+                fi
+            - run:
+                if [ "$TASK" = "snapshot-tests" ] 
+                then 
+                  $ANT compile && run ./tests/snapshot/test.sh 
+                fi
+            - run:
+                if [ "$TASK" = "unit-tests" ] 
+                then 
+                  $ANT compile && run ./som core-lib/TestSuite/TestRunner.ns 
+                fi
+            - run:
+                if [ "$TASK" = "native"  ] 
+                then 
+                  $ANT native 
+                fi
