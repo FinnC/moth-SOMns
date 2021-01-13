@@ -27,7 +27,7 @@ jobs:
                 
         strategy:
           matrix:
-            fast_finish: ${{true}}
+            #fast_finish: true
             include:
               - env: TASK=core-tests
               - env: TASK=checkstyle
@@ -49,8 +49,8 @@ jobs:
                 language: generic
                 env:  TASK=unit-tests
 
-              - name: Test Moth
-                sudo: true
+              #- name: Test Moth
+              #  sudo: true
 
     before_script:
         runs-on: ubuntu-14.04
