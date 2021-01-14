@@ -69,13 +69,13 @@ jobs:
           ANT: ant -e
         run: |
           if [ "$ACTIONS_TASK" = "core-tests"    ]; then $ANT core-tests    && $ANT serialization-tests && $ANT coverage; fi
-          if [ "$ACTIONS_TASK" = "checkstyle"    ]; then $ANT checkstyle    && $ANT eclipseformat-check && run cd tools/kompos && nvm install 7 && run npm install && run npm run lint; fi
-          if [ "$ACTIONS_TASK" = "kompos-tests"  ]; then run nvm install 8  && $ANT compile-all && cd tools/kompos  && run npm -s run verify && run npm test; fi
-          if [ "$ACTIONS_TASK" = "replay1-tests" ]; then $ANT compile       && run ./tests/replay/test.sh 1; fi
-          if [ "$ACTIONS_TASK" = "replay2-tests" ]; then $ANT compile       && run ./tests/replay/test.sh 2; fi
-          if [ "$ACTIONS_TASK" = "snapshot-tests" ]; then $ANT compile      && run ./tests/snapshot/test.sh; fi
+          if [ "$ACTIONS_TASK" = "checkstyle"    ]; then $ANT checkstyle    && $ANT eclipseformat-check && cd tools/kompos && nvm install 7 && npm install && npm run lint; fi
+          if [ "$ACTIONS_TASK" = "kompos-tests"  ]; then run nvm install 8  && $ANT compile-all && cd tools/kompos  && npm -s verify && npm test; fi
+          if [ "$ACTIONS_TASK" = "replay1-tests" ]; then $ANT compile       && ./tests/replay/test.sh 1; fi
+          if [ "$ACTIONS_TASK" = "replay2-tests" ]; then $ANT compile       && ./tests/replay/test.sh 2; fi
+          if [ "$ACTIONS_TASK" = "snapshot-tests" ]; then $ANT compile      && ./tests/snapshot/test.sh; fi
           if [ "$ACTIONS_TASK" = "native"        ]; then $ANT native; fi
-          if [ "$ACTIONS_TASK" = "unit-tests"    ]; then $ANT compile       && run ./som core-lib/TestSuite/TestRunner.ns; fi
+          if [ "$ACTIONS_TASK" = "unit-tests"    ]; then $ANT compile       && ./som core-lib/TestSuite/TestRunner.ns; fi
           if [ "$ACTIONS_TASK" = "moth-codespeed" ]; then
             sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF 
             sudo apt install apt-transport-https 
