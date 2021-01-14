@@ -59,14 +59,13 @@ jobs:
             export ECLIPSE_URL=http://archive.eclipse.org/eclipse/downloads/drops4/R-4.6.3-201703010400/eclipse-SDK-4.6.3-linux-gtk-x86_64.tar.gz
             wget --progress=bar:force ${ECLIPSE_URL} -O ${ECLIPSE_TAR}
             tar -C ${GITHUB_WORKSPACE}/.. -xzf ${ECLIPSE_TAR}
-            export ECLIPSE_EXE=${GITHUB_WORKSPACE}/../eclipse/eclipse
+            echo "$GITHUB_WORKSPACE/../eclipse/eclipse" >> $ECLIPSE_EXE
           fi
-          export ANT="ant -e"
+          echo "ant -e" >> $ANT
           
       - name: Build and testing
         env:
           ACTIONS_TASK: ${{ matrix.task }} 
-          ANT: ant -e
         run: |
           if [ "$ACTIONS_TASK" = "core-tests"    ]; then $ANT core-tests    && $ANT serialization-tests && $ANT coverage; fi
           if [ "$ACTIONS_TASK" = "checkstyle"    ]; then $ANT checkstyle    && $ANT eclipseformat-check && cd tools/kompos && nvm install 7 && npm install && npm run lint; fi
