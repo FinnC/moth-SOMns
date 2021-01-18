@@ -14,7 +14,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         jdk: [8]
-        task: [core-tests, checkstyle, kompos-tests, native, moth-codespeed] # replay1-tests, replay2-tests, snapshot-tests
+        task: [core-tests, checkstyle, native, moth-codespeed] # replay1-tests, replay2-tests, snapshot-tests
         include:
           - os: ubuntu-latest
             jdk: 11
@@ -74,21 +74,7 @@ jobs:
           ACTIONS_TASK: ${{ matrix.task }} 
         run: |
           if [ "$ACTIONS_TASK" = "core-tests"    ]; then $ANT core-tests    && $ANT serialization-tests && $ANT coverage; fi
-          if [ "$ACTIONS_TASK" = "checkstyle"    ]; then
-            $ANT checkstyle && $ANT eclipseformat-check
-            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-            cd tools/kompos && nvm install 7 && npm install && npm run lint
-          fi
-          if [ "$ACTIONS_TASK" = "kompos-tests"  ]; then
-            $ANT compile-all
-            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-            nvm install 8 && cd tools/kompos && npm -s verify && npm test; fi
+          if [ "$ACTIONS_TASK" = "checkstyle"    ]; then $ANT checkstyle    && $ANT eclipseformat-check; fi
           if [ "$ACTIONS_TASK" = "replay1-tests" ]; then $ANT compile       && ./tests/replay/test.sh 1; fi
           if [ "$ACTIONS_TASK" = "replay2-tests" ]; then $ANT compile       && ./tests/replay/test.sh 2; fi
           if [ "$ACTIONS_TASK" = "snapshot-tests" ]; then $ANT compile      && ./tests/snapshot/test.sh; fi
