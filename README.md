@@ -12,7 +12,7 @@ Status
 
 Active development of Moth is currently happening on the [moth-SOMns](https://github.com/gracelang/moth-SOMns) repo.
 
-The latest runnable version is reflected by the `moth` branch [![Build Status](https://travis-ci.com/gracelang/moth-SOMns.svg?branch=moth)](https://travis-ci.com/github/gracelang/moth-SOMns).
+The latest runnable version is reflected by the `moth` branch.
 
 Changes and releases are documented in our [CHANGELOG.md][cl].
 
