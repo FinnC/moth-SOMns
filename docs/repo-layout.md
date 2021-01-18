@@ -71,32 +71,3 @@ core-lib
 |- Threading.ns              # Threading and fork/join-related classes
 |- Transactions.ns           # Software transactional memory classes
 ```
-
-## Code Layout: Kompos
-
-Kompos is a web-based debugger integrated into SOMns. It is based on Truffle's
-language agnostic debugger support and extends it to provide actor-specific
-debugging facilities. It is implemented in TypeScript.
-
-Note that Kompos and the VS Code debugger share the TypeScript code that is
-used to interface with the Java backend.
-
-```bash
-/tools/kompos/
-|- index.html            # The HTML elements for the debugger
-|- package.json          # NPM package definition
-|- src
-   |- breakpoints.ts     # Breakpoint related code
-   |- controller.ts      # MVC controller to connect model and view
-   |- debugger.ts        # Debugger model to manager state needed in UI
-   |- history-data.ts    # Model for the actor message history
-   |- main.js            # Main JS file used from HTML frontend
-   |- messages.ts        # Definitions of messages exchanged with SOMns interpreter
-   |- view.ts            # The HTML view code
-   |- visualizations.ts  # Visualizes actor interactions as graph
-   |- vm-connection.ts   # Web socket connection to the SOMns interpreter
-
-|- tests                 # Tests debugger interaction with SOMns, including some SOMns integration tests
-|- tsconfig.json         # TypeScript config
-|- tslint.json           # TypeScript lint settings
-```
