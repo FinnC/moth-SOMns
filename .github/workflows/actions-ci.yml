@@ -47,7 +47,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with: 
-          python-version: '3.3'
+          python-version: '3.4'
 
       # Sets up OSX for testing
       - name: Pre-install
@@ -78,10 +78,10 @@ jobs:
           then
             sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF 
             sudo apt install apt-transport-https 
-            echo "deb https://download.mono-project.com/repo/ubuntu stable-trusty main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list 
+            echo "deb https://download.mono-project.com/repo/ubuntu stable main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list 
             sudo apt update -qq 
             sudo apt install mono-devel -y
-            sudo pip install git+https://github.com/smarr/ReBench.git
+            sudo pip install rebench
           fi
           
           echo "ANT=ant -e" >> $GITHUB_ENV
