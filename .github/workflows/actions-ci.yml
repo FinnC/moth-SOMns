@@ -90,10 +90,5 @@ jobs:
           if [ "$ACTIONS_TASK" = "replay2-tests" ]; then $ANT compile       && ./tests/replay/test.sh 2; fi
           if [ "$ACTIONS_TASK" = "snapshot-tests" ]; then $ANT compile      && ./tests/snapshot/test.sh; fi
           if [ "$ACTIONS_TASK" = "native"        ]; then $ANT native; fi
-          if [ "$ACTIONS_TASK" = "unit-tests"    ]; then $ANT compile       && ./som core-lib/TestSuite/TestRunner.ns; fi
-          if [ "$ACTIONS_TASK" = "moth-codespeed" ]; then
-            $ANT compile-moth
-            ./moth -tc grace-lib/hello.grace 
-            ./moth -tc grace-lib/Tests/testRunner.grace 
-            rebench -B -S codespeed.conf grace-tests
-          fi
+          if [ "$ACTIONS_TASK" = "unit-tests"    ]; then $ANT compile       && ./som core-lib/TestSuite/TestRunner.ns && ./moth -tc grace-lib/Tests/testRunner.grace; fi
+          if [ "$ACTIONS_TASK" = "moth-codespeed" ]; then $ANT compile-moth && rebench -B -S codespeed.conf grace-tests; fi
