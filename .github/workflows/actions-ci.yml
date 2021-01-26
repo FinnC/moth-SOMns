@@ -42,6 +42,12 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: '8'
+      
+      # Sets up Python
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with: 
+          python-version: '3.3'
 
       # Sets up OSX for testing
       - name: Pre-install
