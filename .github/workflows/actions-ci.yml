@@ -54,7 +54,7 @@ jobs:
             brew install ant
           fi
       
-      # Installs Eclipse for checkstyle and sets up Ant run command env
+      # Installs requirements for chckstyle and codespeed tasks, and sets up Ant run command env
       - name: Install
         env:
           ACTIONS_TASK: ${{ matrix.task }}
@@ -67,6 +67,17 @@ jobs:
             tar -C ${GITHUB_WORKSPACE}/.. -xzf ${ECLIPSE_TAR}
             echo "ECLIPSE_EXE=$GITHUB_WORKSPACE/../eclipse/eclipse" >> $GITHUB_ENV
           fi
+          
+          if [ "$ACTIONS_TASK" = "moth-codespeed" ]
+          then
+            sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF 
+            sudo apt install apt-transport-https 
+            echo "deb https://download.mono-project.com/repo/ubuntu stable-trusty main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list 
+            sudo apt update -qq 
+            sudo apt install mono-devel -y
+            sudo pip install git+https://github.com/smarr/ReBench.git
+          fi
+          
           echo "ANT=ant -e" >> $GITHUB_ENV
           
       - name: Build and testing
@@ -81,13 +92,7 @@ jobs:
           if [ "$ACTIONS_TASK" = "native"        ]; then $ANT native; fi
           if [ "$ACTIONS_TASK" = "unit-tests"    ]; then $ANT compile       && ./som core-lib/TestSuite/TestRunner.ns; fi
           if [ "$ACTIONS_TASK" = "moth-codespeed" ]; then
-            sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF 
-            sudo apt install apt-transport-https 
-            echo "deb https://download.mono-project.com/repo/ubuntu stable-trusty main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list 
-            sudo apt update -qq 
-            sudo apt install mono-devel -y
-            sudo pip install git+https://github.com/smarr/ReBench.git
-            ant compile-moth
+            $ANT compile-moth
             ./moth -tc grace-lib/hello.grace 
             ./moth -tc grace-lib/Tests/testRunner.grace 
             rebench -B -S codespeed.conf grace-tests
