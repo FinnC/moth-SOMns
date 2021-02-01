@@ -1,12 +1,10 @@
 package som.interpreter.objectstorage;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.graalvm.collections.EconomicMap;
 import org.graalvm.collections.EconomicSet;
 
 import com.oracle.truffle.api.CompilerAsserts;
+import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.dsl.NodeFactory;
 
 import som.VM;
@@ -14,10 +12,10 @@ import som.compiler.MixinBuilder.MixinDefinitionId;
 import som.compiler.MixinDefinition;
 import som.compiler.MixinDefinition.SlotDefinition;
 import som.interpreter.nodes.dispatch.Dispatchable;
-import som.vm.SomStructuralType;
 import som.vm.VmSettings;
 import som.vmobjects.SClass;
 import som.vmobjects.SSymbol;
+import som.vmobjects.SType;
 import tools.snapshot.nodes.AbstractSerializationNode;
 import tools.snapshot.nodes.SerializerRootNode;
 
@@ -65,7 +63,7 @@ public final class ClassFactory {
 
   private final ClassFactory classClassFactory;
 
-  public final SomStructuralType type;
+  public @CompilationFinal SType type;
 
   protected final SerializerRootNode serializationRoot;
 
@@ -106,7 +104,28 @@ public final class ClassFactory {
         : new ObjectLayout(instanceSlots, this, isTransferObject);
 
     this.classClassFactory = classClassFactory;
-    this.type = getType();
+
+    this.type = null;
+  }
+
+  /**
+   * Set the type representing the public interface of objects created by the classes created
+   * by the factory.
+   *
+   * @param type - the type of the classes
+   */
+  public void setType(final SType type) {
+    this.type = type;
+  }
+
+  /**
+   * Get the type representing the public interface of objects created by the classes created
+   * by the factory.
+   *
+   * @return The type of the classes.
+   */
+  public SType getType() {
+    return type;
   }
 
   public boolean isDeclaredAsValue() {
@@ -206,45 +225,5 @@ public final class ClassFactory {
 
   public SSymbol getIdentifier() {
     return mixinDef.getIdentifier();
-  }
-
-  private SomStructuralType getType() {
-    if (!VmSettings.USE_TYPE_CHECKING) {
-      return null;
-    }
-
-    List<SSymbol> signatures = new ArrayList<SSymbol>();
-
-    EconomicMap<SSymbol, Dispatchable> dispatchables = mixinDef.getInstanceDispatchables();
-    for (SSymbol sig : dispatchables.getKeys()) {
-      signatures.add(sig);
-    }
-
-    for (int i = 0; i < superclassAndMixins.length; i++) {
-
-      if (superclassAndMixins[i] == null) {
-        break;
-      } else {
-
-        SClass clazz = superclassAndMixins[i];
-        if (clazz == null) {
-          continue;
-        } else {
-          SClass next = clazz;
-          while (next != null) {
-            EconomicMap<SSymbol, Dispatchable> dispatchablesOfMixin =
-                next.getDispatchables();
-            if (dispatchablesOfMixin != null) {
-              for (SSymbol sig : dispatchablesOfMixin.getKeys()) {
-                signatures.add(sig);
-              }
-            }
-            next = next.getSuperClass();
-          }
-        }
-      }
-    }
-
-    return SomStructuralType.makeType(signatures);
   }
 }

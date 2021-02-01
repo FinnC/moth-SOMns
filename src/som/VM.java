@@ -14,12 +14,12 @@ import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.TruffleContext;
 import com.oracle.truffle.api.TruffleLanguage.Env;
-import com.oracle.truffle.api.debug.Debugger;
 import com.oracle.truffle.api.instrumentation.Tag;
 import com.oracle.truffle.api.nodes.GraphPrintVisitor;
 import com.oracle.truffle.api.source.Source;
 import com.oracle.truffle.api.source.SourceSection;
 import com.oracle.truffle.tools.profiler.CPUSampler;
+import com.oracle.truffle.api.debug.Debugger;
 
 import bd.inlining.InlinableNodes;
 import bd.tools.structure.StructuralProbe;
@@ -300,6 +300,11 @@ public final class VM {
   }
 
   public void initalize(final SomLanguage lang) throws IOException {
+    if (objectSystem != null) {
+      assert language == lang : "Reinitializing VM, with second language";
+      return;
+    }
+
     Actor.initializeActorSystem(language);
 
     assert objectSystem == null : "Object system was not successfully initialized";

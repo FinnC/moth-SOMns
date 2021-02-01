@@ -1,0 +1,100 @@
+name: Moth-CI
+
+on:
+  # Triggers the workflow on push or pull request events
+  push:
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        jdk: [8]
+        task: [core-tests, checkstyle, native, moth-codespeed] # replay1-tests, replay2-tests, snapshot-tests
+        include:
+          - os: ubuntu-latest
+            jdk: 11
+            task: unit-tests
+            
+          - os: macos-latest
+            jdk: 11
+            task: unit-tests
+           
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        
+      # Sets up JDK according to matrix
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.jdk }}
+      
+      # Sets up Node
+      - name: Set up Node
+        uses: actions/setup-node@v2
+        with:
+          node-version: '8'
+      
+      # Sets up Python
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with: 
+          python-version: '3.8.7'
+
+      # Sets up OSX for testing
+      - name: Pre-install
+        env:
+          ACTIONS_OS: ${{ matrix.os }}
+        run: |
+          if [ "$ACTIONS_OS" = "macos-latest" ]
+          then
+            brew update
+            brew install ant
+          fi
+      
+      # Installs requirements for chckstyle and codespeed tasks, and sets up Ant run command env
+      - name: Install
+        env:
+          ACTIONS_TASK: ${{ matrix.task }}
+        run: |
+          if [ "$ACTIONS_TASK" = "checkstyle" ]
+          then
+            export ECLIPSE_TAR=eclipse.tar.gz
+            export ECLIPSE_URL=http://archive.eclipse.org/eclipse/downloads/drops4/R-4.6.3-201703010400/eclipse-SDK-4.6.3-linux-gtk-x86_64.tar.gz
+            wget --progress=bar:force ${ECLIPSE_URL} -O ${ECLIPSE_TAR}
+            tar -C ${GITHUB_WORKSPACE}/.. -xzf ${ECLIPSE_TAR}
+            echo "ECLIPSE_EXE=$GITHUB_WORKSPACE/../eclipse/eclipse" >> $GITHUB_ENV
+          fi
+          
+          if [ "$ACTIONS_TASK" = "moth-codespeed" ]
+          then
+            sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF 
+            sudo apt install apt-transport-https 
+            echo "deb https://download.mono-project.com/repo/ubuntu stable main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list 
+            sudo apt update -qq 
+            sudo apt install mono-devel -y
+            sudo pip install rebench
+          fi
+          
+          echo "ANT=ant -e" >> $GITHUB_ENV
+          
+      - name: Build and testing
+        env:
+          ACTIONS_TASK: ${{ matrix.task }} 
+        run: |
+          if [ "$ACTIONS_TASK" = "core-tests"    ]; then $ANT core-tests    && $ANT serialization-tests && $ANT coverage; fi
+          if [ "$ACTIONS_TASK" = "checkstyle"    ]; then $ANT checkstyle    && $ANT eclipseformat-check; fi
+          if [ "$ACTIONS_TASK" = "replay1-tests" ]; then $ANT compile       && ./tests/replay/test.sh 1; fi
+          if [ "$ACTIONS_TASK" = "replay2-tests" ]; then $ANT compile       && ./tests/replay/test.sh 2; fi
+          if [ "$ACTIONS_TASK" = "snapshot-tests" ]; then $ANT compile      && ./tests/snapshot/test.sh; fi
+          if [ "$ACTIONS_TASK" = "native"        ]; then $ANT native; fi
+          if [ "$ACTIONS_TASK" = "unit-tests"    ]; then $ANT compile       && ./som core-lib/TestSuite/TestRunner.ns && ./moth -tc grace-lib/Tests/testRunner.grace; fi
+          if [ "$ACTIONS_TASK" = "moth-codespeed" ]; then $ANT compile-moth && alias python=python3 && python2=python3 && rebench -B -S codespeed.conf grace-tests; fi

@@ -8,6 +8,7 @@ import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 
 import som.interpreter.SomLanguage;
+import som.interpreter.nodes.TypeCheckNode;
 import som.interpreter.objectstorage.StorageAccessor;
 import som.vm.VmSettings;
 import tools.concurrency.TracingActors.ReplayActor;
@@ -56,6 +57,8 @@ public final class Launcher {
     if (VmSettings.SNAPSHOTS_ENABLED && !VmSettings.TEST_SNAPSHOTS) {
       SnapshotBackend.writeSnapshot();
     }
+
+    TypeCheckNode.reportStats();
 
     if (exitCode != 0) {
       ReplayActor.printMissingMessages();

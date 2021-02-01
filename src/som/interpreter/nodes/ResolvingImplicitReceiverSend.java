@@ -85,6 +85,7 @@ public class ResolvingImplicitReceiverSend extends AbstractMessageSendNode {
   private PreevaluatedExpression reusePreviousSpecialization(final Object[] args) {
     PreevaluatedExpression newNode;
     OuterObjectRead newReceiverNode;
+
     synchronized (this) {
       newNode = replacedBy;
       newReceiverNode = newReceiverNodeForOuterSend;

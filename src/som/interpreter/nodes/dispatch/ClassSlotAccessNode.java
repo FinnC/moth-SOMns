@@ -10,7 +10,7 @@ import som.compiler.MixinDefinition;
 import som.compiler.MixinDefinition.SlotDefinition;
 import som.interpreter.Invokable;
 import som.interpreter.nodes.InstantiationNode.ClassInstantiationNode;
-import som.interpreter.nodes.InstantiationNodeFactory.ClassInstantiationNodeGen;
+import som.interpreter.nodes.InstantiationNodeFactory;
 import som.interpreter.objectstorage.ObjectTransitionSafepoint;
 import som.vm.constants.Nil;
 import som.vmobjects.SClass;
@@ -40,14 +40,14 @@ public final class ClassSlotAccessNode extends CachedSlotRead {
 
   public ClassSlotAccessNode(final MixinDefinition mixinDef, final SlotDefinition slotDef,
       final CachedSlotRead read, final CachedSlotWrite write) {
-    super(SlotAccess.CLASS_READ, read.guardForRcvr, read.typeCheck, read.nextInCache);
+    super(SlotAccess.CLASS_READ, read.guardForRcvr, read.nextInCache);
 
     // TODO: can the slot read be an unwritten read? I'd think so.
     this.read = read;
     this.write = write;
     this.mixinDef = mixinDef;
     this.slotDef = slotDef;
-    this.instantiation = ClassInstantiationNodeGen.create(mixinDef);
+    this.instantiation = InstantiationNodeFactory.ClassInstantiationNodeGen.create(mixinDef);
     this.objectSlotIsAllocated = guardForRcvr.isObjectSlotAllocated(slotDef);
   }
 
@@ -77,7 +77,7 @@ public final class ClassSlotAccessNode extends CachedSlotRead {
         // recheck guard under synchronized, don't want to access object if
         // layout might have changed, we are going to slow path in that case
         // TODO(SM): After merging th 0.7.0 SOMns, do I still need `guardForRcvr`?
-        read.guardForRcvr.entryMatches(rcvr, null);
+        guardForRcvr.entryMatches(rcvr, null);
         cachedValue = read.read(rcvr);
       } catch (InvalidAssumptionException e) {
         CompilerDirectives.transferToInterpreterAndInvalidate();
@@ -92,6 +92,7 @@ public final class ClassSlotAccessNode extends CachedSlotRead {
         return (SClass) cachedValue;
       }
     }
+    // }
   }
 
   /**
@@ -107,7 +108,7 @@ public final class ClassSlotAccessNode extends CachedSlotRead {
       // at this point the guard will fail, if it failed for the read guard,
       // but we simply recheck here to avoid impact on fast path
       // TODO(SM): After merging th 0.7.0 SOMns, do I still need `guardForRcvr`?
-      write.guardForRcvr.entryMatches(rcvr, null);
+      guardForRcvr.entryMatches(rcvr, null);
       write.doWrite(rcvr, classObject);
     } catch (InvalidAssumptionException e) {
       CompilerDirectives.transferToInterpreterAndInvalidate();

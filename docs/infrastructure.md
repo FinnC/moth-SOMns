@@ -1,12 +1,12 @@
 # Infrastructure
 
-This gives a brief overview of some of the infrastructure used in SOMns.
+This gives a brief overview of some of the infrastructure used in Moth.
 
 ## Build System
 
-SOMns uses Ant as build system. The setup tries to minimize
+Moth uses Ant as build system. The setup tries to minimize
 the external software dependencies. Currently, instead of using some automatic
-dependency management system for SOMns, we use an *uberjar* that combines all
+dependency management system for Moth, we use an *uberjar* that combines all
 rarely changing Java dependencies.
 
 The corresponding project is [SOMns-deps](https://github.com/smarr/SOMns-deps),

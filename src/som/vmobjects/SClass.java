@@ -25,6 +25,8 @@
 package som.vmobjects;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.graalvm.collections.EconomicMap;
 import org.graalvm.collections.EconomicSet;
@@ -41,6 +43,7 @@ import som.compiler.MixinBuilder.MixinDefinitionId;
 import som.compiler.MixinDefinition;
 import som.compiler.MixinDefinition.ClassSlotDefinition;
 import som.compiler.MixinDefinition.SlotDefinition;
+import som.interpreter.TruffleCompiler;
 import som.interpreter.nodes.dispatch.Dispatchable;
 import som.interpreter.objectstorage.ClassFactory;
 import som.interpreter.objectstorage.ObjectLayout;
@@ -70,6 +73,8 @@ public final class SClass extends SObjectWithClass {
   @CompilationFinal private boolean         isArray;          // is a subclass of Array
 
   @CompilationFinal private ClassFactory instanceClassGroup; // the factory for this object
+
+  @CompilationFinal public SType type;
 
   protected final SObjectWithClass enclosingObject;
   private final MaterializedFrame  context;
@@ -192,6 +197,7 @@ public final class SClass extends SObjectWithClass {
     this.isTransferObject = isTransferObject;
     this.isArray = isArray;
     this.instanceClassGroup = classFactory;
+    this.type = getType();
     // assert instanceClassGroup != null || !ObjectSystem.isInitialized();
 
     if (VmSettings.TRACK_SNAPSHOT_ENTITIES) {
@@ -379,5 +385,48 @@ public final class SClass extends SObjectWithClass {
 
   public AbstractSerializationNode getSerializer() {
     return instanceClassGroup.getSerializer();
+  }
+
+  /**
+   * Gets the type, constructing it if it hasn't been already.
+   *
+   * @return The type of the class.
+   */
+  private SType getType() {
+    // Use the type from the factory if it has already been created
+    SType type = instanceClassGroup.getType();
+    if (type != null) {
+      return type;
+    }
+
+    TruffleCompiler.transferToInterpreterAndInvalidate("Building a type with a set");
+    Set<SSymbol> signatures = new HashSet<>();
+
+    // Add public methods
+    if (dispatchables != null) {
+      for (SSymbol sig : dispatchables.getKeys()) {
+        if (dispatchables.get(sig).getAccessModifier() == AccessModifier.PUBLIC) {
+          signatures.add(sig);
+        }
+      }
+    }
+
+    // Add public methods of parent
+    SClass sup = superclass;
+    while (sup != null) {
+      if (sup.dispatchables != null) {
+        for (SSymbol sig : sup.dispatchables.getKeys()) {
+          if (sup.dispatchables.get(sig).getAccessModifier() == AccessModifier.PUBLIC) {
+            signatures.add(sig);
+          }
+        }
+      }
+      sup = sup.superclass;
+    }
+
+    // Create and return the type
+    type = new SType.InterfaceType(signatures.toArray(new SSymbol[] {}));
+    instanceClassGroup.setType(type);
+    return type;
   }
 }

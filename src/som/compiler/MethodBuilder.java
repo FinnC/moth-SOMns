@@ -29,9 +29,11 @@ import static som.vm.Symbols.symbolFor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 import org.graalvm.collections.EconomicMap;
 
+import com.google.gson.JsonObject;
 import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.frame.FrameSlotKind;
 import com.oracle.truffle.api.source.SourceSection;
@@ -57,7 +59,6 @@ import som.interpreter.SomLanguage;
 import som.interpreter.nodes.ExpressionNode;
 import som.interpreter.nodes.ReturnNonLocalNode;
 import som.interpreter.nodes.literals.BlockNode;
-import som.vm.SomStructuralType;
 import som.vm.Symbols;
 import som.vm.constants.Nil;
 import som.vmobjects.SInvokable;
@@ -72,8 +73,12 @@ public final class MethodBuilder extends ScopeBuilder<MethodScope>
 
   private final SomLanguage language;
 
-  private SSymbol signature;
-  private SSymbol returnType;
+  private SSymbol    signature;
+  /**
+   * The return type as a JSON object describing the type. This is to be translated into an
+   * actual type expression when the return type is to be used.
+   */
+  private JsonObject returnType;
 
   private final List<SourceSection> definition = new ArrayList<>(3);
 
@@ -282,7 +287,7 @@ public final class MethodBuilder extends ScopeBuilder<MethodScope>
     // the concrete block methods anymore, but might not matter, because they
     // are only used to do further splitting anyway
     SInitializer meth = new SInitializer(signature, accessModifier,
-        truffleMeth, embeddedBlockMethods.toArray(new SInvokable[0]), getTypes());
+        truffleMeth, embeddedBlockMethods.toArray(new SInvokable[0]));
 
     // the method's holder field is to be set later on!
     return meth;
@@ -293,29 +298,10 @@ public final class MethodBuilder extends ScopeBuilder<MethodScope>
       final SourceSection sourceSection) {
     Method truffleMethod = assembleInvokable(body, sourceSection);
     SInitializer meth = new SInitializer(signature, accessModifier,
-        truffleMethod, embeddedBlockMethods.toArray(new SInvokable[0]), getTypes());
+        truffleMethod, embeddedBlockMethods.toArray(new SInvokable[0]));
 
     // the method's holder field is to be set later on!
     return meth;
-  }
-
-  private SomStructuralType[] getTypes() {
-    List<SomStructuralType> types = new ArrayList<SomStructuralType>();
-
-    int i = 0;
-    for (Argument arg : getArguments()) {
-
-      // skip self
-      if (i != 0) {
-        types.add(SomStructuralType.recallTypeByName(arg.type));
-      }
-
-      i += 1;
-    }
-
-    types.add(SomStructuralType.recallTypeByName(returnType));
-
-    return types.toArray(new SomStructuralType[types.size()]);
   }
 
   public SInvokable assemble(final ExpressionNode body,
@@ -323,7 +309,7 @@ public final class MethodBuilder extends ScopeBuilder<MethodScope>
       final SourceSection sourceSection) {
     Method truffleMethod = assembleInvokable(body, sourceSection);
     SInvokable meth = new SInvokable(signature, accessModifier,
-        truffleMethod, embeddedBlockMethods.toArray(new SInvokable[0]), getTypes());
+        truffleMethod, embeddedBlockMethods.toArray(new SInvokable[0]));
 
     language.getVM().reportParsedRootNode(truffleMethod);
     // the method's holder field is to be set later on!
@@ -382,11 +368,16 @@ public final class MethodBuilder extends ScopeBuilder<MethodScope>
     signature = sig;
   }
 
-  public void setReturnType(final SSymbol returnType) {
+  /**
+   * Set the return type for the method.
+   *
+   * @param returnType - the return type described by a JSON object.
+   */
+  public void setReturnType(final JsonObject returnType) {
     this.returnType = returnType;
   }
 
-  public void addArgument(final SSymbol arg, final SSymbol type,
+  public void addArgument(final SSymbol arg, final Supplier<ExpressionNode> type,
       final SourceSection source) {
     if ((Symbols.SELF == arg || Symbols.BLOCK_SELF == arg) && arguments.size() > 0) {
       throw new IllegalStateException(
@@ -410,7 +401,7 @@ public final class MethodBuilder extends ScopeBuilder<MethodScope>
     return l;
   }
 
-  public Local addLocal(final SSymbol name, final SSymbol type,
+  public Local addLocal(final SSymbol name, final Supplier<ExpressionNode> type,
       final boolean immutable, final SourceSection source) throws MethodDefinitionError {
     if (arguments.containsKey(name)) {
       throw new MethodDefinitionError("Method already defines argument " + name
@@ -425,14 +416,13 @@ public final class MethodBuilder extends ScopeBuilder<MethodScope>
     }
     l.init(scope.getFrameDescriptor().addFrameSlot(l), scope.getFrameDescriptor());
     locals.put(name, l);
-
     if (structuralProbe != null) {
       structuralProbe.recordNewVariable(l);
     }
     return l;
   }
 
-  private Local addLocalAndUpdateScope(final SSymbol name, final SSymbol type,
+  private Local addLocalAndUpdateScope(final SSymbol name, final Supplier<ExpressionNode> type,
       final boolean immutable, final SourceSection source) throws MethodDefinitionError {
     Local l = addLocal(name, type, immutable, source);
     scope.addVariable(l);
@@ -561,7 +551,18 @@ public final class MethodBuilder extends ScopeBuilder<MethodScope>
   public ExpressionNode getWriteNode(final SSymbol variableName,
       final ExpressionNode valExpr, final SourceSection source) {
     Local variable = getLocal(variableName);
-    return variable.getWriteNode(getContextLevel(variableName), valExpr, source);
+    ExpressionNode node =
+        variable.getWriteNode(getContextLevel(variableName), valExpr, source);
+    // TODO: Better communicate the fact that the local is immutable so can't be written to
+    // after it
+    // has been initialized
+    if (node == null) {
+      language.getVM()
+              .errorExit(source.getSource().getURI() + " [" + source.getStartLine() + ":"
+                  + source.getStartColumn() + "]: Tried to write to constant '"
+                  + variable.getQualifiedName() + "' outside of its definition");
+    }
+    return node;
   }
 
   public ExpressionNode getImplicitReceiverSend(final SSymbol selector,
@@ -687,6 +688,24 @@ public final class MethodBuilder extends ScopeBuilder<MethodScope>
     makeCatchNonLocalReturn();
     return new ReturnNonLocalNode(expr, getFrameOnStackMarkerVar(),
         getOuterSelfContextLevel());
+  }
+
+  /**
+   * Finds the return type of the method, searching outer methods if needs be.
+   *
+   * @return The JSON object describing the return type.
+   */
+  public JsonObject findReturnType() {
+    // TODO: Ensure that the expected type of a class doesn't cause a method return to expect
+    // that type.
+    MethodBuilder method = this;
+    while (method != null) {
+      if (method.returnType != null) {
+        return method.returnType;
+      }
+      method = method.outer == null ? null : method.outer.getMethod();
+    }
+    return null;
   }
 
   @Override

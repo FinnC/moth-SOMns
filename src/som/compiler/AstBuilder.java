@@ -32,7 +32,10 @@ import static som.interpreter.SNodeFactory.createMessageSend;
 import static som.vm.Symbols.symbolFor;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -51,7 +54,9 @@ import som.interpreter.SomLanguage;
 import som.interpreter.nodes.ExpressionNode;
 import som.interpreter.nodes.MessageSendNode.AbstractMessageSendNode;
 import som.interpreter.nodes.ResolvingImplicitReceiverSend;
+import som.interpreter.nodes.TypeCheckNode;
 import som.interpreter.nodes.literals.ArrayLiteralNode;
+import som.interpreter.nodes.literals.BooleanLiteralNode;
 import som.interpreter.nodes.literals.BooleanLiteralNode.FalseLiteralNode;
 import som.interpreter.nodes.literals.BooleanLiteralNode.TrueLiteralNode;
 import som.interpreter.nodes.literals.DoubleLiteralNode;
@@ -59,10 +64,15 @@ import som.interpreter.nodes.literals.IntegerLiteralNode;
 import som.interpreter.nodes.literals.LiteralNode;
 import som.interpreter.nodes.literals.NilLiteralNode;
 import som.interpreter.nodes.literals.ObjectLiteralNode;
+import som.interpreter.nodes.literals.STypeLiteral;
+import som.interpreter.nodes.literals.SVMLiteral;
 import som.interpreter.nodes.literals.StringLiteralNode;
+import som.interpreter.objectstorage.InitializerFieldWrite;
 import som.vm.Symbols;
+import som.vm.VmSettings;
 import som.vmobjects.SInvokable;
 import som.vmobjects.SSymbol;
+import som.vmobjects.SType;
 
 
 /**
@@ -98,17 +108,24 @@ public class AstBuilder {
     literalBuilder = new Literals();
   }
 
+  /**
+   * Delayed translates used for types to generate unique expressions for each type check.
+   */
+  public BiFunction<JsonObject, JsonTreeTranslator, Supplier<ExpressionNode>> delayedTranslate =
+      (jo, translator) -> () -> translator.translate(jo);
+
   public class Objects {
 
     /**
      * Adds an immutable slot to the object currently at the top of stack. The slot will be
      * initialized by executing the given expressions.
      */
-    public void addImmutableSlot(final SSymbol slotName, final SSymbol type,
+    public void addImmutableSlot(final SSymbol slotName, final JsonObject type,
         final ExpressionNode init,
         final SourceSection sourceSection) {
       try {
-        scopeManager.peekObject().addSlot(slotName, type, AccessModifier.PUBLIC, true, init,
+        scopeManager.peekObject().addSlot(slotName, translator.translate(type),
+            AccessModifier.PUBLIC, true, init,
             sourceSection);
       } catch (MixinDefinitionError e) {
         language.getVM().errorExit("Failed to add " + slotName + " as a slot on "
@@ -121,10 +138,19 @@ public class AstBuilder {
      * Adds a mutable slot to the object currently at the top of stack. The slot will be
      * initialized to nil.
      */
-    public void addMutableSlot(final SSymbol slotName, final SSymbol type,
+    public void addMutableSlot(final SSymbol slotName, final JsonObject type,
         final SourceSection sourceSection) {
       try {
-        scopeManager.peekObject().addSlot(slotName, type, AccessModifier.PUBLIC, false, null,
+        // Add a type write method if there is a type
+        ExpressionNode typeExp = translator.translate(type);
+        if (typeExp != null && VmSettings.USE_TYPE_CHECKING) {
+          slotWrite(symbolFor(slotName.getString() + ":"),
+              delayedTranslate.apply(type, translator),
+              sourceSection);
+        }
+        // Add the mutable slot
+        scopeManager.peekObject().addSlot(slotName, translator.translate(type),
+            AccessModifier.PUBLIC, false, null,
             sourceSection);
       } catch (MixinDefinitionError e) {
         language.getVM().errorExit("Failed to add " + slotName + " as a slot on "
@@ -150,7 +176,8 @@ public class AstBuilder {
      *
      * @return - the assembled class corresponding to the module
      */
-    public MixinDefinition module(final SSymbol[] locals, final SSymbol[] localTypes,
+    public MixinDefinition module(final SSymbol[] locals, final JsonObject[] localTypes,
+        final boolean[] localImmutable,
         final SourceSection[] localSources, final JsonArray body,
         final SourceSection sourceSection) {
       SSymbol moduleName = symbolFor(sourceManager.getModuleName());
@@ -180,26 +207,30 @@ public class AstBuilder {
         addImmutableSlot(Symbols.SECRET_DIALECT_SLOT, null,
             requestBuilder.importModule(symbolFor("standardGrace"), sourceSection),
             sourceSection);
+      } else {
+        // Add the SOM VM mirror as a secret slot on the standard grace module
+        addImmutableSlot(Symbols.VMMIRROR, null,
+            new SVMLiteral(language).initialize(sourceManager.empty()),
+            sourceManager.empty());
       }
 
       // Add all other slots for this module
       for (int i = 0; i < locals.length; i++) {
-        addMutableSlot(locals[i], localTypes[i], localSources[i]);
+        if (localImmutable[i]) {
+          // Don't provide initializer since that will be created later
+          addImmutableSlot(locals[i], null, null, localSources[i]);
+        } else {
+          addMutableSlot(locals[i], localTypes[i], localSources[i]);
+        }
       }
 
       // Translate the body and add each to the initializer (except when this is the main
       // module)
       if (!sourceManager.isMainModule()) {
         for (JsonElement element : body) {
-          Object expr = translator.translate(element.getAsJsonObject());
+          ExpressionNode expr = translator.translate(element.getAsJsonObject());
           if (expr != null) {
-            if (expr instanceof ExpressionNode) {
-              moduleBuilder.addInitializerExpression((ExpressionNode) expr);
-            } else {
-              language.getVM().errorExit(
-                  "Only expression nodes can be provided for the body of an object's initializer");
-              throw new RuntimeException();
-            }
+            moduleBuilder.addInitializerExpression(expr);
           }
         }
       }
@@ -222,7 +253,7 @@ public class AstBuilder {
       if (sourceManager.isMainModule()) {
         for (JsonElement element : body) {
           ExpressionNode expression =
-              (ExpressionNode) translator.translate(element.getAsJsonObject());
+              translator.translate(element.getAsJsonObject());
           if (expression != null) {
             expressions.add(expression);
           }
@@ -252,10 +283,11 @@ public class AstBuilder {
      * this solution is simple. I will revisit this solution and attempt to develop a better
      * solution later.
      */
-    public void clazzDefinition(final SSymbol name, final SSymbol returnType,
-        final SSymbol[] parameters, final SSymbol[] parameterTypes,
+    public void clazzDefinition(final SSymbol name, final JsonObject returnType,
+        final SSymbol[] parameters, final JsonObject[] parameterTypes,
         final SourceSection[] parameterSources, final SSymbol[] locals,
-        final SSymbol[] localTypes, final SourceSection[] localSources,
+        final JsonObject[] localTypes, final boolean[] localImmutable,
+        final SourceSection[] localSources,
         final JsonArray body, final SourceSection sourceSection) {
 
       // Munge the name of the class
@@ -270,13 +302,15 @@ public class AstBuilder {
 
       // Create the initialization method, with munging applied to the argument names
       MethodBuilder instanceFactory = builder.getPrimaryFactoryMethodBuilder();
+
       instanceFactory.setReturnType(returnType);
       instanceFactory.setSignature(symbolFor(instanceFactoryName));
-      instanceFactory.addArgument(Symbols.SELF, null, sourceManager.empty());
+      instanceFactory.addArgument(Symbols.SELF, null, sourceSection);
       for (int i = 0; i < parameters.length; i++) {
         instanceFactory.addArgument(symbolFor(parameters[i].getString() + "'"),
-            parameterTypes[i], parameterSources[i]);
+            delayedTranslate.apply(parameterTypes[i], translator), parameterSources[i]);
       }
+
       builder.setupInitializerBasedOnPrimaryFactory(sourceSection);
       builder.setInitializerSource(sourceSection);
       builder.finalizeInitializer();
@@ -288,10 +322,10 @@ public class AstBuilder {
       for (int i = 0; i < parameters.length; i++) {
         ExpressionNode argRead = requestBuilder.implicit(
             symbolFor(parameters[i].getString() + "'"), parameterSources[i]);
-        // addImmutableSlot(parameters[i], parameterTypes[i], argRead, parameterSources[i]);
 
         try {
-          scopeManager.peekObject().addSlot(parameters[i], parameterTypes[i],
+          scopeManager.peekObject().addSlot(parameters[i],
+              translator.translate(parameterTypes[i]),
               AccessModifier.PRIVATE, true, argRead,
               sourceSection);
         } catch (MixinDefinitionError e) {
@@ -303,25 +337,38 @@ public class AstBuilder {
 
       // Add all other slots for this module
       for (int i = 0; i < locals.length; i++) {
-        addMutableSlot(locals[i], localTypes[i], localSources[i]);
+        if (localImmutable[i]) {
+          // Don't provide initializer since that will be created later
+          addImmutableSlot(locals[i], null, null, localSources[i]);
+        } else {
+          addMutableSlot(locals[i], localTypes[i], localSources[i]);
+        }
       }
 
       // Set module to inherit from object by default (this can be changed via Grace's inherits
       // expressions)
       builder.setSimpleInheritance(Symbols.OBJECT, sourceSection);
 
+      // Add type checks for each of the arguments
+      for (Argument arg : instanceFactory.getArguments()) {
+        // Only add the check if it has a type.
+        ExpressionNode typeExpr = arg.type == null ? null : arg.type.get();
+        if (typeExpr != null) {
+          builder.addInitializerExpression(TypeCheckNode.create(typeExpr,
+              arg.getReadNode(scopeManager.peekMethod().getContextLevel(arg.name),
+                  arg.source),
+              typeExpr.getSourceSection()));
+        }
+      }
+
       // Translate the body and add each to the initializer (except when this is the main
       // module)
-      for (JsonElement element : body) {
-        Object expr = translator.translate(element.getAsJsonObject());
+      Iterator<JsonElement> iter = body.iterator();
+      while (iter.hasNext()) {
+        ExpressionNode expr = translator.translate(iter.next().getAsJsonObject());
         if (expr != null) {
-          if (expr instanceof ExpressionNode) {
-            builder.addInitializerExpression((ExpressionNode) expr);
-          } else {
-            language.getVM().errorExit(
-                "Only expression nodes can be provided for the body of an object's initializer");
-            throw new RuntimeException();
-          }
+          // Don't add return type check to the last one due since that isn't what is returned
+          builder.addInitializerExpression(expr);
         }
       }
 
@@ -335,17 +382,18 @@ public class AstBuilder {
     /**
      * Creates a method that returns an instance of the named class.
      */
-    public void clazzMethod(final SSymbol name, final SSymbol returnType,
+    public void clazzMethod(final SSymbol name, final JsonObject returnType,
         final SSymbol[] parameters,
-        final SSymbol[] parameterTypes, final SourceSection[] parameterSources,
+        final JsonObject[] parameterTypes, final SourceSection[] parameterSources,
         final SourceSection sourceSection) {
       MethodBuilder builder = scopeManager.newMethod(name, null);
-      builder.setReturnType(returnType);
 
       // Set the parameters
       builder.addArgument(Symbols.SELF, null, sourceManager.empty());
       for (int i = 0; i < parameters.length; i++) {
-        builder.addArgument(parameters[i], parameterTypes[i], parameterSources[i]);
+        builder.addArgument(parameters[i],
+            delayedTranslate.apply(parameterTypes[i], translator),
+            parameterSources[i]);
       }
 
       builder.setVarsOnMethodScope();
@@ -372,6 +420,12 @@ public class AstBuilder {
       ExpressionNode getInstance =
           requestBuilder.explicit(symbolFor(newSignature), getClazz, arguments, sourceSection);
 
+      ExpressionNode returnTypeExpr = translator.translate(returnType);
+      if (returnTypeExpr != null) {
+        getInstance = TypeCheckNode.create(returnTypeExpr,
+            getInstance, returnTypeExpr.getSourceSection());
+      }
+
       // Assemble and return the completed module
       scopeManager.assembleCurrentMethod(getInstance, sourceSection);
     }
@@ -388,7 +442,8 @@ public class AstBuilder {
      * <munged method name>θ<line>@<column>
      */
     public ExpressionNode objectConstructor(final SSymbol[] locals,
-        final SSymbol[] localTypes, final SourceSection[] localSources,
+        final JsonObject[] localTypes, final boolean[] localImmutable,
+        final SourceSection[] localSources,
         final JsonArray body, final SourceSection sourceSection) {
 
       // Generate the signature for the block
@@ -416,7 +471,12 @@ public class AstBuilder {
 
       // Add all other slots for this module
       for (int i = 0; i < locals.length; i++) {
-        addMutableSlot(locals[i], localTypes[i], localSources[i]);
+        if (localImmutable[i]) {
+          // Don't provide initializer since that will be created later
+          addImmutableSlot(locals[i], null, null, localSources[i]);
+        } else {
+          addMutableSlot(locals[i], localTypes[i], localSources[i]);
+        }
       }
 
       // Set module to inherit from object by default (this can be changed via Grace's inherits
@@ -467,7 +527,7 @@ public class AstBuilder {
       for (int i = 0; i < argumentNodes.length; i++) {
         JsonObject argumentNode = argumentNodes[i];
         ExpressionNode argumentExpression =
-            (ExpressionNode) translator.translate(argumentNode);
+            translator.translate(argumentNode);
 
         if (!(argumentExpression instanceof LiteralNode)) {
           if ((argumentExpression instanceof ResolvingImplicitReceiverSend)) {
@@ -513,7 +573,7 @@ public class AstBuilder {
       for (int i = 0; i < argumentNodes.length; i++) {
         JsonObject argumentNode = argumentNodes[i];
         ExpressionNode argumentExpression =
-            (ExpressionNode) translator.translate(argumentNode);
+            translator.translate(argumentNode);
 
         if (!(argumentExpression instanceof LiteralNode)) {
           if ((argumentExpression instanceof ResolvingImplicitReceiverSend)) {
@@ -555,8 +615,8 @@ public class AstBuilder {
      * #foo__λ5@8::
      */
     public ExpressionNode block(final SSymbol[] parameters,
-        final SSymbol[] parameterTypes, final SourceSection[] parameterSources,
-        final SSymbol[] locals, final SSymbol[] localTypes,
+        final JsonObject[] parameterTypes, final SourceSection[] parameterSources,
+        final SSymbol[] locals, final JsonObject[] localTypes, final boolean[] localImmutable,
         final SourceSection[] localSources, final JsonArray body,
         final SourceSection sourceSection) {
 
@@ -576,13 +636,17 @@ public class AstBuilder {
       // Set the parameters
       builder.addArgument(Symbols.BLOCK_SELF, null, sourceManager.empty());
       for (int i = 0; i < parameters.length; i++) {
-        builder.addArgument(parameters[i], parameterTypes[i], parameterSources[i]);
+        builder.addArgument(parameters[i],
+            delayedTranslate.apply(parameterTypes[i], translator),
+            parameterSources[i]);
       }
 
       // Set the locals
       for (int i = 0; i < locals.length; i++) {
         try {
-          builder.addLocal(locals[i], localTypes[i], false, localSources[i]);
+          builder.addLocal(locals[i], delayedTranslate.apply(localTypes[i], translator),
+              localImmutable[i],
+              localSources[i]);
         } catch (MethodDefinitionError e) {
           language.getVM().errorExit("Failed to add " + locals[i] + " to "
               + builder.getSignature() + ": " + e.getMessage());
@@ -592,8 +656,21 @@ public class AstBuilder {
       builder.setVarsOnMethodScope();
       builder.finalizeMethodScope();
 
-      // Translate the body and add each to the initializer
       List<ExpressionNode> expressions = new ArrayList<ExpressionNode>();
+
+      // Add type checks for each of the arguments
+      for (Argument arg : builder.getArguments()) {
+        // Only add the check if it has a type.
+        ExpressionNode typeExpr = arg.type == null ? null : arg.type.get();
+        if (typeExpr != null) {
+          expressions.add(TypeCheckNode.create(typeExpr,
+              arg.getReadNode(scopeManager.peekMethod().getContextLevel(arg.name),
+                  arg.source),
+              typeExpr.getSourceSection()));
+        }
+      }
+
+      // Translate the body and add each to the initializer
       for (JsonElement element : body) {
         Object expr = translator.translate(element.getAsJsonObject());
         if (expr != null) {
@@ -617,23 +694,29 @@ public class AstBuilder {
      * Adds a method with the given selector, variables, and body to the object at the top of
      * the stack.
      */
-    public void method(final SSymbol selector, final SSymbol returnType,
-        final SSymbol[] parameters, final SSymbol[] parameterTypes,
+    public void method(final SSymbol selector, final JsonObject returnType,
+        final SSymbol[] parameters, final JsonObject[] parameterTypes,
         final SourceSection[] parameterSources, final SSymbol[] locals,
-        final SSymbol[] localTypes, final SourceSection[] localSources,
+        final JsonObject[] localTypes, final boolean[] localImmutable,
+        final SourceSection[] localSources,
         final JsonArray body, final SourceSection sourceSection) {
-      MethodBuilder builder = scopeManager.newMethod(selector, returnType);
+      MethodBuilder builder =
+          scopeManager.newMethod(selector, returnType);
 
       // Set the parameters
       builder.addArgument(Symbols.SELF, null, sourceManager.empty());
       for (int i = 0; i < parameters.length; i++) {
-        builder.addArgument(parameters[i], parameterTypes[i], parameterSources[i]);
+        builder.addArgument(parameters[i],
+            delayedTranslate.apply(parameterTypes[i], translator),
+            parameterSources[i]);
       }
 
       // Set the locals
       for (int i = 0; i < locals.length; i++) {
         try {
-          builder.addLocal(locals[i], localTypes[i], false, localSources[i]);
+          builder.addLocal(locals[i], delayedTranslate.apply(localTypes[i], translator),
+              localImmutable[i],
+              localSources[i]);
         } catch (MethodDefinitionError e) {
           language.getVM().errorExit("Failed to add " + locals[i] + " to "
               + builder.getSignature() + ": " + e.getMessage());
@@ -643,18 +726,39 @@ public class AstBuilder {
       builder.setVarsOnMethodScope();
       builder.finalizeMethodScope();
 
-      // Translate the body and add each to the initializer
       List<ExpressionNode> expressions = new ArrayList<ExpressionNode>();
-      for (JsonElement element : body) {
-        Object expr = translator.translate(element.getAsJsonObject());
-        if (expr != null) {
-          if (expr instanceof ExpressionNode) {
-            expressions.add((ExpressionNode) expr);
-          } else {
-            language.getVM().errorExit(
-                "Only expression nodes can be provided for the body of an object's initializer");
-            throw new RuntimeException();
+
+      // Add type checks for each of the arguments
+      for (Argument arg : builder.getArguments()) {
+        // Only add the check if it has a type.
+        ExpressionNode typeExpr = arg.type == null ? null : arg.type.get();
+        if (typeExpr != null) {
+          expressions.add(TypeCheckNode.create(typeExpr,
+              arg.getReadNode(scopeManager.peekMethod().getContextLevel(arg.name),
+                  arg.source),
+              typeExpr.getSourceSection()));
+        }
+      }
+
+      boolean returned = false;
+      for (int i = 0; i < body.size(); ++i) {
+        JsonObject element = body.get(i).getAsJsonObject();
+        ExpressionNode expr = translator.translate(element);
+        // Ignore statements once a block has been returned from and if they don't exist
+        if (expr != null && !returned) {
+          // If the expression is a return or the last statement
+          if (element.get("nodetype").getAsString().equals("return") || i == body.size() - 1) {
+            // Wrap the expression in the type if exists
+            ExpressionNode returnTypeExpr = translator.translate(returnType);
+            if (returnTypeExpr != null) {
+              expr = TypeCheckNode.create(returnTypeExpr, expr,
+                  returnTypeExpr.getSourceSection());
+            }
+            // Stop adding expressions
+            returned = true;
           }
+          // Add the expression
+          expressions.add(expr);
         }
       }
 
@@ -662,6 +766,65 @@ public class AstBuilder {
       scopeManager.assembleCurrentMethod(
           SNodeFactory.createSequence(expressions, sourceSection), sourceSection);
     }
+
+    public ExpressionNode slotInitializer(final SSymbol selector, final ExpressionNode type,
+        ExpressionNode initializer, final SourceSection source) {
+      // Type check the initializing expression if there is a type
+      if (type != null) {
+        initializer = TypeCheckNode.create(type, initializer, type.getSourceSection());
+      }
+      SlotDefinition slot = scopeManager.peekObject().getSlot(selector);
+      ExpressionNode self =
+          scopeManager.peekObject().getInitializerMethodBuilder().getSelfRead(source);
+      InitializerFieldWrite write = slot.getInitializerWriteNode(self, initializer, source);
+      write.markAsStatement();
+      return write;
+    }
+
+    /**
+     * Adds a method with the given selector, variables, and body to the object at the top of
+     * the stack.
+     */
+    public void typeStatement(final SSymbol selector,
+        final ExpressionNode type, final SourceSection sourceSection) {
+      MethodBuilder builder = scopeManager.newMethod(selector, null);
+
+      // Set the parameters
+      builder.addArgument(Symbols.SELF, null, sourceManager.empty());
+
+      builder.setVarsOnMethodScope();
+      builder.finalizeMethodScope();
+
+      // Assemble and return the completed module
+      scopeManager.assembleCurrentMethod(type, sourceSection);
+    }
+
+    /**
+     * Adds a method for writing to a slot that is intended to be type checked.
+     */
+    public void slotWrite(final SSymbol selector, final Supplier<ExpressionNode> type,
+        final SourceSection sourceSection) {
+      MethodBuilder builder = scopeManager.newMethod(selector, null);
+      // Set the parameters
+      builder.addArgument(Symbols.SELF, null, sourceManager.empty());
+      builder.addArgument(symbolFor("value"), null, sourceSection);
+      builder.setVarsOnMethodScope();
+      builder.finalizeMethodScope();
+      List<ExpressionNode> expressions = new ArrayList<ExpressionNode>();
+      // Add type checks for each of the arguments
+      ExpressionNode typeExpr = type.get();
+      List<ExpressionNode> arguments = new ArrayList<ExpressionNode>();
+      arguments.add(TypeCheckNode.create(typeExpr,
+          builder.getReadNode(symbolFor("value"), sourceSection),
+          typeExpr.getSourceSection()));
+      // Write to the masked field
+      expressions.add(requestBuilder.implicit(symbolFor("!!!" + selector.getString()),
+          arguments, sourceSection));
+      // Assemble and return the completed module
+      scopeManager.assembleCurrentMethod(
+          SNodeFactory.createSequence(expressions, sourceSection), sourceSection);
+    }
+
   }
 
   public class Requests {
@@ -700,6 +863,11 @@ public class AstBuilder {
       arguments.add(0, receiver);
       SSymbol selectorAfterChecks = selector;
 
+      // NOTE: Cast functionality to allow us to add manual casts
+      if (selector.getString().equals("cast:")) {
+        return TypeCheckNode.create(receiver, arguments.get(1), sourceSection);
+      }
+
       // Use the Newspeak's `value` methods directly when the selector is Grace's `apply`
       if (selector.getString().contains("apply::")) {
 
@@ -724,8 +892,10 @@ public class AstBuilder {
     public ExpressionNode implicit(final SSymbol name, final SourceSection sourceSection) {
       if (name.getString().equals("true") || name.getString().equals("false")) {
         return literalBuilder.bool(name.getString(), sourceSection);
-      } else if (name.getString().equals("Done")) {
+      } else if (name.getString().equals("done")) {
         return literalBuilder.done(sourceSection);
+      } else if (name.getString().equals("Unknown")) {
+        return null;
       }
       MethodBuilder method = scopeManager.peekMethod();
       return method.getImplicitReceiverSend(name, sourceSection);
@@ -788,10 +958,18 @@ public class AstBuilder {
      * Creates an expression to return the given expression from a block, which stops any
      * further expressions in the enclosing method from being expected.
      */
-    public ExpressionNode makeBlockReturn(final ExpressionNode returnExpression,
+    public ExpressionNode makeBlockReturn(ExpressionNode returnExpression,
         final SourceSection sourceSection) {
       assert scopeManager.peekMethod()
                          .isBlockMethod() : "can only build a return expression for block nodes";
+      ExpressionNode outerReturnType =
+          translator.translate(scopeManager.peekMethod().findReturnType());
+
+      if (outerReturnType != null) {
+        returnExpression = TypeCheckNode.create(outerReturnType, returnExpression,
+            outerReturnType.getSourceSection());
+
+      }
       return scopeManager.peekMethod().getNonLocalReturn(returnExpression)
                          .initialize(sourceSection);
     }
@@ -808,7 +986,7 @@ public class AstBuilder {
 
       // Translate first receiver as `expression.toString`
       JsonObject firstObj = elements.get(0).getAsJsonObject();
-      ExpressionNode receiver = (ExpressionNode) translator.translate(firstObj);
+      ExpressionNode receiver = translator.translate(firstObj);
       receiver = explicit(symbolFor("asString"), receiver, new ArrayList<ExpressionNode>(),
           translator.source(firstObj));
 
@@ -816,7 +994,7 @@ public class AstBuilder {
         JsonObject operandObj = elements.get(i).getAsJsonObject();
 
         // Set operand as `expression.toString`
-        ExpressionNode operand = (ExpressionNode) translator.translate(operandObj);
+        ExpressionNode operand = translator.translate(operandObj);
         operand = explicit(symbolFor("asString"), operand, new ArrayList<ExpressionNode>(),
             translator.source(operandObj));
 
@@ -836,7 +1014,7 @@ public class AstBuilder {
     /**
      * Creates a SOM boolean literal from the given string.
      */
-    public ExpressionNode bool(final String value, final SourceSection sourceSection) {
+    public BooleanLiteralNode bool(final String value, final SourceSection sourceSection) {
       if (value.equals("true")) {
         return new TrueLiteralNode().initialize(sourceSection);
       } else {
@@ -844,21 +1022,28 @@ public class AstBuilder {
       }
     }
 
-    public ExpressionNode done(final SourceSection sourceSection) {
+    public NilLiteralNode done(final SourceSection sourceSection) {
       return new NilLiteralNode().initialize(sourceSection);
+    }
+
+    /**
+     * Creatse a literal for an interface type.
+     */
+    public STypeLiteral type(final SSymbol[] signatures, final SourceSection sourceSection) {
+      return new STypeLiteral(new SType.InterfaceType(signatures)).initialize(sourceSection);
     }
 
     /**
      * Creates a SOM number literal from the given string.
      */
-    public ExpressionNode number(final double value, final SourceSection sourceSection) {
+    public DoubleLiteralNode number(final double value, final SourceSection sourceSection) {
       return new DoubleLiteralNode(value).initialize(sourceSection);
     }
 
     /**
      * Creates a SOM string literal from the given string.
      */
-    public ExpressionNode string(final String value, final SourceSection sourceSection) {
+    public StringLiteralNode string(final String value, final SourceSection sourceSection) {
       String processEscapes = value;
       processEscapes = processEscapes.replace("\\{", "{");
       processEscapes = processEscapes.replace("\\}", "}");
@@ -866,10 +1051,11 @@ public class AstBuilder {
       return new StringLiteralNode(processEscapes).initialize(sourceSection);
     }
 
-    public Object array(final JsonObject[] arguments, final SourceSection sourceSection) {
+    public ArrayLiteralNode array(final JsonObject[] arguments,
+        final SourceSection sourceSection) {
       ExpressionNode[] exprs = new ExpressionNode[arguments.length];
       for (int i = 0; i < arguments.length; i++) {
-        exprs[i] = (ExpressionNode) translator.translate(arguments[i]);
+        exprs[i] = translator.translate(arguments[i]);
       }
       return ArrayLiteralNode.create(exprs, sourceSection);
     }

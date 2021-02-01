@@ -28,6 +28,7 @@ import static som.vm.Symbols.symbolFor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 import org.graalvm.collections.EconomicMap;
 
@@ -47,10 +48,12 @@ import som.interpreter.SNodeFactory;
 import som.interpreter.SomLanguage;
 import som.interpreter.nodes.ExpressionNode;
 import som.interpreter.nodes.IsValueCheckNode;
+import som.interpreter.nodes.TypeCheckNode;
 import som.interpreter.nodes.dispatch.Dispatchable;
 import som.interpreter.objectstorage.InitializerFieldWrite;
 import som.primitives.NewObjectPrimNodeGen;
 import som.vm.Symbols;
+import som.vm.VmSettings;
 import som.vmobjects.SInvokable;
 import som.vmobjects.SSymbol;
 
@@ -371,8 +374,26 @@ public final class MixinBuilder extends ScopeBuilder<MixinScope> {
     }
   }
 
-  public void addSlot(final SSymbol name, final SSymbol type,
-      final AccessModifier acccessModifier, final boolean immutable, final ExpressionNode init,
+  /**
+   * Get the definition for a slot.
+   */
+  public SlotDefinition getSlot(final SSymbol name) {
+    return slots.get(name);
+  }
+
+  /**
+   * Adds a slot to the mixin.
+   *
+   * @param name - the name of the slot
+   * @param type - the expression to type check the slot as during initialisation
+   * @param acccessModifier - specifies the level of access
+   * @param immutable - whether this is an immutable slot
+   * @param init - the expression to initialise this slot to
+   * @param source - the location in the source
+   * @throws MixinDefinitionError
+   */
+  public void addSlot(final SSymbol name, final ExpressionNode type,
+      final AccessModifier acccessModifier, final boolean immutable, ExpressionNode init,
       final SourceSection source) throws MixinDefinitionError {
     if (dispatchables.containsKey(name)) {
       throw new MixinDefinitionError("The class " + this.name.getString() +
@@ -380,20 +401,43 @@ public final class MixinBuilder extends ScopeBuilder<MixinScope> {
           " A second slot with the same name is not possible.", source);
     }
 
-    SlotDefinition slot = new SlotDefinition(name, type, acccessModifier, immutable, source);
+    // Add the slot
+    SlotDefinition slot = new SlotDefinition(name, acccessModifier, immutable, source);
     slots.put(name, slot);
 
     if (!immutable) {
       allSlotsAreImmutable = false;
     }
 
+    // Add the read dispatch
     dispatchables.put(name, slot);
+
+    // Add the write dispatch if it is mutable
     if (!immutable) {
-      dispatchables.put(getSetterName(name),
-          new SlotMutator(name, type, acccessModifier, immutable, source, slot));
+      /*
+       * When there is a type that is to be used, then the write must be masked. This is
+       * because a new method will be created for the setter that will call the masked write
+       * after performing the required type check.
+       */
+      if (type != null && VmSettings.USE_TYPE_CHECKING) {
+        dispatchables.put(symbolFor("!!!" + getSetterName(name).getString()),
+            new SlotMutator(name, acccessModifier, immutable,
+                source, slot));
+        // Otherwise add the write with usual name
+      } else {
+        dispatchables.put(getSetterName(name),
+            new SlotMutator(name, acccessModifier, immutable,
+                source, slot));
+      }
     }
 
+    // Add the initialising expression if it has one
     if (init != null) {
+      // Wrap the expression in a type check if typed
+      if (type != null && VmSettings.USE_TYPE_CHECKING) {
+        init = TypeCheckNode.create(type, init, type.getSourceSection());
+      }
+
       ExpressionNode self = initializer.getSelfRead(source);
       InitializerFieldWrite write = slot.getInitializerWriteNode(self, init, source);
       write.markAsStatement();
@@ -524,7 +568,7 @@ public final class MixinBuilder extends ScopeBuilder<MixinScope> {
    * signature.
    */
   public void addArgumentToSuperClassResolutionBuilder(final SSymbol name,
-      final SSymbol type, final SourceSection sourceSection) {
+      final Supplier<ExpressionNode> type, final SourceSection sourceSection) {
     superclassAndMixinResolutionBuilder.addArgument(name, type, sourceSection);
     String newSelector = superclassAndMixinResolutionBuilder.getSignature().getString() + ":";
     superclassAndMixinResolutionBuilder.setSignature(symbolFor(newSelector));
@@ -718,7 +762,7 @@ public final class MixinBuilder extends ScopeBuilder<MixinScope> {
     }
 
     embeddedMixins.put(name, nestedMixin);
-    ClassSlotDefinition cacheSlot = new ClassSlotDefinition(name, null, nestedMixin);
+    ClassSlotDefinition cacheSlot = new ClassSlotDefinition(name, nestedMixin);
     dispatchables.put(name, cacheSlot);
     slots.put(name, cacheSlot);
   }

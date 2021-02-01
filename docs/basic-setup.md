@@ -1,23 +1,23 @@
 # Basic User Setup
 
-A brief overview for a basic development setup for SOMns.
+A brief overview for a basic development setup for Moth.
 
 ## Minimal Software Requirements
 
-SOMns works on Java 8+JVMCI, Java 9, 10 and 11, uses Ant as a build system,
+Moth works on Java 8+JVMCI, Java 9, 10 and 11, uses Ant as a build system,
 git as source control system, and Python for a launcher script.
 
-For performance, SOMns relies on the Graal compiler using the JVMCI,
+For performance, Moth relies on the Graal compiler using the JVMCI,
 which is present by default in Java starting from Java 9.
 To use Java 8, one needs to use the [Oracle Labs JDK 8](https://www.oracle.com/technetwork/oracle-labs/program-languages/downloads/index.html) instead of the default JDK 8.
 
-Although SOMns can be used with Java 9, 10, and 11, the Substrate VM dependency
+Although Moth can be used with Java 9, 10, and 11, the Substrate VM dependency
 can be compiled so far only using JDK 8+JVMCI. To work around this problem,
 the build process includes two environment variables, `JAVA_HOME` and `JVMCI_HOME`.
 `JVMCI_HOME` must point to the JDK 8+JVMCI home directory,
 while `JAVA_HOME` can point to a standard JDK 8 or later.
 
-We test SOMns on Linux and macOS (fully under JDK 8+JVMCI, and in Java 11 mixed
+We test Moth on Linux and macOS (fully under JDK 8+JVMCI, and in Java 11 mixed
 with Java 8+JVMCI). Windows is not currently supported.
 
 On Ubuntu, the following instructions will install the necessary dependencies,
@@ -56,18 +56,18 @@ export JVMCI_HOME=/Library/Java/JavaVirtualMachines/labsjdk1.8.0_192-jvmci-0.53/
 After the dependencies are installed, the code can be checked out with:
 
 ```bash
-git clone https://github.com/smarr/SOMns.git
+git clone --branch moth --recurse-submodules https://github.com/gracelang/moth-SOMns
 ```
 
-Then, SOMns can be built with Ant:
+Then, Moth can be built with Ant:
 
 ```bash
-cd SOMns
-ant compile  ## will also download dependencies
+cd moth-SOMns
+ant compile
 ```
 
 Afterwards, the simple Hello World program is executed with:
 
 ```bash
-./som core-lib/Hello.ns
+./moth grace-lib/hello.grace
 ```

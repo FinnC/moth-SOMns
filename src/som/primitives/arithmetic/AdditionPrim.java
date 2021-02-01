@@ -1,6 +1,9 @@
 package som.primitives.arithmetic;
 
 import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.dsl.GenerateNodeFactory;
@@ -9,6 +12,7 @@ import com.oracle.truffle.api.dsl.Specialization;
 import bd.primitives.Primitive;
 import som.vmobjects.SClass;
 import som.vmobjects.SSymbol;
+import som.vmobjects.SType;
 
 
 @GenerateNodeFactory
@@ -95,5 +99,17 @@ public abstract class AdditionPrim extends ArithmeticPrim {
   @TruffleBoundary
   public final String doString(final String left, final SSymbol right) {
     return left + right.getString();
+  }
+
+  /**
+   * + is used for type union representing the methods that both types have.
+   */
+  @Specialization
+  @TruffleBoundary
+  public final SType doTypeUnion(final SType left, final SType right) {
+    Set<SSymbol> signatures = new HashSet<>();
+    signatures.addAll(Arrays.asList(left.getSignatures()));
+    signatures.retainAll(Arrays.asList(right.getSignatures()));
+    return new SType.InterfaceType(signatures.toArray(new SSymbol[signatures.size()]));
   }
 }

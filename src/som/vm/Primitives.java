@@ -63,6 +63,8 @@ import som.primitives.SizeAndLengthPrimFactory;
 import som.primitives.StringPrimsFactory;
 import som.primitives.SystemPrimsFactory;
 import som.primitives.TimerPrimFactory;
+import som.primitives.TypePrimsFactory;
+import som.primitives.processes.ChannelPrimitivesFactory;
 import som.primitives.UnequalsPrimFactory;
 import som.primitives.actors.ActorClassesFactory;
 import som.primitives.actors.CreateActorPrimFactory;
@@ -93,7 +95,6 @@ import som.primitives.arrays.PutAllNodeFactory;
 import som.primitives.bitops.BitAndPrimFactory;
 import som.primitives.bitops.BitOrPrimFactory;
 import som.primitives.bitops.BitXorPrimFactory;
-import som.primitives.processes.ChannelPrimitivesFactory;
 import som.primitives.threading.ConditionPrimitivesFactory;
 import som.primitives.threading.DelayPrimitivesFactory;
 import som.primitives.threading.MutexPrimitivesFactory;
@@ -147,7 +148,7 @@ public class Primitives extends PrimitiveLoader<VM, ExpressionNode, SSymbol> {
         prim.getScope().getFrameDescriptor(),
         (ExpressionNode) primNode.deepCopy(), false, lang);
     return new SInvokable(signature, AccessModifier.PUBLIC,
-        primMethodNode, null, new SomStructuralType[] {null});
+        primMethodNode, null);
   }
 
   public EconomicMap<SSymbol, Dispatchable> takeVmMirrorPrimitives() {
@@ -194,6 +195,7 @@ public class Primitives extends PrimitiveLoader<VM, ExpressionNode, SSymbol> {
     addAll(allFactories, PromisePrimsFactory.getFactories());
     addAll(allFactories, StringPrimsFactory.getFactories());
     addAll(allFactories, SystemPrimsFactory.getFactories());
+    addAll(allFactories, TypePrimsFactory.getFactories());
 
     addAll(allFactories, ActivitySpawnFactory.getFactories());
     addAll(allFactories, ThreadingModuleFactory.getFactories());
