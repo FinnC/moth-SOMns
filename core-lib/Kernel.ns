@@ -51,6 +51,7 @@ class Kernel vmMirror: vmMirror = Object <: Value (
     (* Converting, Convenience *)
     public , element = ( ^ (Vector new append: self) append: element )
     public hashcode  = ( ^ vmMirror objHashcode: self )
+    public hash = ( ^ hashcode ) (* for moth *)
 
     (* Newspeak requirements
        This works around restrictions by the absense of a global scope,
@@ -71,11 +72,14 @@ class Kernel vmMirror: vmMirror = Object <: Value (
     public println  = ( vmMirror printNewline: self asString )
     public halt     = ( vmMirror halt: self )
     public asString = ( ^ 'instance of ' + (vmMirror objClassName: self) )
+    (* add bind for moth *)
+    public bind: other = ( ^ Binding key: other value: self )
   )
 
   public class Type = Value ()
   (
     public checkOrError: aObj = ( vmMirror type: self checkOrError: aObj )
+    public matches: aObj = (^ [self checkOrError: aObj. true] on: Exception do: [ :e | false])
   )
 
   public class Object = Thing ()
@@ -93,6 +97,18 @@ class Kernel vmMirror: vmMirror = Object <: Value (
     public <> other = ( ^ (self = other) not )
     public != other = ( ^ self <> other )
     public copy = ( ^ self )
+
+    public matches: arg = ( ^ self == arg )
+  )
+
+  public class Binding key: k value: v = Object ( |
+    public key ::= k.
+    public value ::= v.
+  | )
+  (
+    public hashcode = ( ^ 31 * key hashcode * value hashcode )
+    public == other = ( ^ key == other key && value == other value ) (* is not called *)
+    public asString = ( ^ key asString + '::' + value asString )
   )
 
   (* Transfer objects are handled almost identically to normal objects.
@@ -128,6 +144,8 @@ class Kernel vmMirror: vmMirror = Object <: Value (
     (* Logical operations *)
     public || boolean = ( ^ self or: boolean  )
     public && boolean = ( ^ self and: boolean )
+    
+    public matches: arg = ( ^ self == arg )
   )
 
   public class True = Boolean ()
@@ -219,6 +237,7 @@ class Kernel vmMirror: vmMirror = Object <: Value (
     public as32BitUnsignedValue = ( ^ vmMirror intAs32BitUnsignedValue: self ) (* returns an int, with the value that a unsigned 32-bit integer would have *)
     public asCodepointString = ( ^ vmMirror intAsCodepointString: self )
     public hashcode    = ( ^ self )
+    public asInteger = ( ^ self ) (* for moth *)
 
     (* Iterating *)
     public to: limit do: block = (
@@ -261,6 +280,8 @@ class Kernel vmMirror: vmMirror = Object <: Value (
     public max: otherInt = (
       self < otherInt ifTrue: [ ^ otherInt ] ifFalse: [ ^ self ]
     )
+    
+    public matches: arg = ( ^ self == arg )
   ) : (
     public fromString: aString = ( ^ vmMirror intFromString: aString )
   )
@@ -319,6 +340,8 @@ class Kernel vmMirror: vmMirror = Object <: Value (
       i:: self.
       [ i >= limit ] whileTrue: [ block value: i. i:: i - 1.0 ]
     )
+    
+    public matches: arg = ( ^ self == arg )
   ) : (
     public PositiveInfinity = ( ^ vmMirror doublePositiveInfinity: nil )
   )
@@ -476,6 +499,8 @@ class Kernel vmMirror: vmMirror = Object <: Value (
 
     (* Printing *)
     public print = ( vmMirror printString: self )
+    
+    public matches: arg = ( ^ self == arg )
   ) : (
     public fromArray: charArray = (
       (* TODO: replace with a Smalltalk implementation to specifiy semantics

@@ -43,6 +43,7 @@ method exe(args: Unknown) -> Done {
   (n == 1).ifTrue {
     runTests("grace-lib/Tests/language.grace")
     runTests("grace-lib/Tests/modules.grace")
+    runTests("grace-lib/Tests/collect.grace")
     runTests("grace-lib/Tests/types.grace")
   } ifFalse {
     runTests(args.at(2.asInteger))

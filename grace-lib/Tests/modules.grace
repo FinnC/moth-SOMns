@@ -1,5 +1,6 @@
 import "mirrors" as mirrors
 import "random" as random
+import "/../Modules/points" as points
 
 method asString {"modules.grace"}
 
@@ -44,11 +45,36 @@ method testRandom {
   (jr.next == -1266253386).ifFalse { error("testRandom failed on Jenkins case 1")}
   (jr.next == -90995496  ).ifFalse { error("testRandom failed on Jenkins case 2")}
   (jr.next == -1239305412).ifFalse { error("testRandom failed on Jenkins case 3")}
-  
+
   var jr := random.Jenkins(2.asInteger)
   (jr.next == -496519092 ).ifFalse { error("testRandom failed on Jenkins case 4")}
   (jr.next == 1739325048 ).ifFalse { error("testRandom failed on Jenkins case 5")}
   (jr.next == 1786620943 ).ifFalse { error("testRandom failed on Jenkins case 6")}
 
   "testRandom passed"
+}
+
+method testPoints {
+    //var p1 := points.point2Dx(4) y(6)
+    //var p2 := points.point2Dx(2) y(1)
+    //var p3 := p1 + p2
+    //if((p3.x != 6) && (p3.y != 7)) then { return "testPoints failed on +" }
+    //p3 := p1 - p2
+    //if((p3.x != 2) && (p3.y != 5)) then { return "testPoints failed on -" }
+    //p3 := -p1
+    //if((p3.x != -4) && (p3.y != -6)) then { return "testPoints failed on prefix-" }
+    //p3 := p1 * 2
+    //if((p3.x != 8) && (p3.y != 12)) then { return "testPoints failed on *" }
+    //p3 := p1 / 2
+    //if((p3.x != 2) && (p3.y != 3)) then { return "testPoints failed on \\" }
+    //p3 := (points.point2Dx(3)y(4)).length
+    //if(p3 != 5) then { return "testPoints failed on length" }
+    //p3 := p1.distanceTo(p2)
+    //if(p3 != 5.385164807134504) then { return "testPoints failed on distanceTo" }
+    //p3 := p1.dot(p2)
+    //if(p3 != 14) then { return "testPoints failed on dot" }
+    //p3 := points.point2Dx(3)y(4).norm
+    //if((p3.x != (3 / 5)) && (p3.y != (4 / 5))) then { return "testPoints failed on norm" }
+
+    "testPoints passed"
 }
