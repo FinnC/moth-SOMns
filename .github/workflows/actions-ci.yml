@@ -42,6 +42,12 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: '8'
+      
+      # Sets up Python
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with: 
+          python-version: '3.8.7'
 
       # Sets up OSX for testing
       - name: Pre-install
@@ -54,7 +60,7 @@ jobs:
             brew install ant
           fi
       
-      # Installs Eclipse for checkstyle and sets up Ant run command env
+      # Installs requirements for chckstyle and codespeed tasks, and sets up Ant run command env
       - name: Install
         env:
           ACTIONS_TASK: ${{ matrix.task }}
@@ -67,6 +73,17 @@ jobs:
             tar -C ${GITHUB_WORKSPACE}/.. -xzf ${ECLIPSE_TAR}
             echo "ECLIPSE_EXE=$GITHUB_WORKSPACE/../eclipse/eclipse" >> $GITHUB_ENV
           fi
+          
+          if [ "$ACTIONS_TASK" = "moth-codespeed" ]
+          then
+            sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF 
+            sudo apt install apt-transport-https 
+            echo "deb https://download.mono-project.com/repo/ubuntu stable main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list 
+            sudo apt update -qq 
+            sudo apt install mono-devel -y
+            sudo pip install rebench
+          fi
+          
           echo "ANT=ant -e" >> $GITHUB_ENV
           
       - name: Build and testing
@@ -79,16 +96,5 @@ jobs:
           if [ "$ACTIONS_TASK" = "replay2-tests" ]; then $ANT compile       && ./tests/replay/test.sh 2; fi
           if [ "$ACTIONS_TASK" = "snapshot-tests" ]; then $ANT compile      && ./tests/snapshot/test.sh; fi
           if [ "$ACTIONS_TASK" = "native"        ]; then $ANT native; fi
-          if [ "$ACTIONS_TASK" = "unit-tests"    ]; then $ANT compile       && ./som core-lib/TestSuite/TestRunner.ns; fi
-          if [ "$ACTIONS_TASK" = "moth-codespeed" ]; then
-            sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF 
-            sudo apt install apt-transport-https 
-            echo "deb https://download.mono-project.com/repo/ubuntu stable-trusty main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list 
-            sudo apt update -qq 
-            sudo apt install mono-devel -y
-            sudo pip install git+https://github.com/smarr/ReBench.git
-            ant compile-moth
-            ./moth -tc grace-lib/hello.grace 
-            ./moth -tc grace-lib/Tests/testRunner.grace 
-            rebench -B -S codespeed.conf grace-tests
-          fi
+          if [ "$ACTIONS_TASK" = "unit-tests"    ]; then $ANT compile       && ./som core-lib/TestSuite/TestRunner.ns && ./moth -tc grace-lib/Tests/testRunner.grace; fi
+          if [ "$ACTIONS_TASK" = "moth-codespeed" ]; then $ANT compile-moth && alias python=python3 && python2=python3 && rebench -B -S codespeed.conf grace-tests; fi

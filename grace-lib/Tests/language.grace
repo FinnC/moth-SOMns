@@ -1,4 +1,5 @@
 import "module" as otherModule
+import "/../Modules/collections" as col
 
 method asString {"language.grace"}
 
@@ -116,6 +117,31 @@ method testExpressionsInLoops {
   "testExpressionsInLoops passed"
 }
 
+method testFor {
+    def s = col.abbreviations.seq(1,2,3,4)
+
+    var v := 0
+    for(s) do { each ->
+        v := v + each
+    }
+    if(v != 10) then { return "testFor failed on {v} != 10" }
+
+    def d = col.abbreviations.dictionary("a" :: 6,"b" :: 7,"c" :: 8)
+    v := 0
+    for(d) do { each ->
+        v := v + each
+    }
+    if(v != 21) then { return "testFor failed on {v} != 21" }
+
+    def s1 = col.abbreviations.set(9,10,11,12)
+    v := 0
+    for(s1) do { each ->
+        v := v + each
+    }
+    if(v != 42) then { return "testFor failed on {v} != 42" }
+    "testFor passed"
+}
+
 class classA {
   method foo {
     123
@@ -215,7 +241,7 @@ class subG(x, y, z) {
 
 method testInherits {
   var expected
- 
+
   expected := 123
   var a := subA
   print(subA)
@@ -250,7 +276,7 @@ method testInherits {
 
 method testObjectConstructor {
 
-  def o1 = object { 
+  def o1 = object {
     def x = 42
     var y := 42
     method foo {
@@ -263,8 +289,8 @@ method testObjectConstructor {
   if (o1.y != expected) then { return "testObjectConstructor failed on o.y {o1.y} != {expected}" }
   if (o1.foo != expected) then { return "testObjectConstructor failed on o.foo {o1.foo} != {expected}" }
 
-  
-  var o2 := object { 
+
+  var o2 := object {
     def x = 41
     var y := 41
     method foo {
@@ -282,7 +308,7 @@ method testObjectConstructor {
 
 method testObjectInherits {
   var expected
- 
+
   expected := 123
   var a := object { inherit classA }
   if (a.foo != expected) then { return "testObjectInherits failed on a: {a.foo} != {expected}" }

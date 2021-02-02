@@ -32,6 +32,7 @@ import static som.interpreter.SNodeFactory.createMessageSend;
 import static som.vm.Symbols.symbolFor;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -614,7 +615,7 @@ public class AstBuilder {
      *
      * #foo__λ5@8::
      */
-    public ExpressionNode block(final SSymbol[] parameters,
+    public ExpressionNode block(final SSymbol[] parameters, final JsonObject pattern,
         final JsonObject[] parameterTypes, final SourceSection[] parameterSources,
         final SSymbol[] locals, final JsonObject[] localTypes, final boolean[] localImmutable,
         final SourceSection[] localSources, final JsonArray body,
@@ -684,10 +685,15 @@ public class AstBuilder {
         }
       }
 
+      // Translate the pattern for the block
+      ExpressionNode patternExpr = translator.translate(pattern);
+
       // Assemble and return the completed block
       return scopeManager.assembleCurrentBlock(
           SNodeFactory.createSequence(expressions, sourceManager.empty()),
-          sourceSection);
+          patternExpr == null ? null
+              : SNodeFactory.createSequence(Arrays.asList(patternExpr), sourceManager.empty()),
+          sourceManager, sourceSection);
     }
 
     /**
@@ -862,6 +868,10 @@ public class AstBuilder {
         final List<ExpressionNode> arguments, final SourceSection sourceSection) {
       arguments.add(0, receiver);
       SSymbol selectorAfterChecks = selector;
+
+      if (selector.getString().equals("::")) {
+        return explicit(symbolFor("bind:"), arguments.get(1), arguments, sourceSection);
+      }
 
       // NOTE: Cast functionality to allow us to add manual casts
       if (selector.getString().equals("cast:")) {
@@ -1038,6 +1048,13 @@ public class AstBuilder {
      */
     public DoubleLiteralNode number(final double value, final SourceSection sourceSection) {
       return new DoubleLiteralNode(value).initialize(sourceSection);
+    }
+
+    /**
+     * Creates a SOM number literal from the given string.
+     */
+    public IntegerLiteralNode number(final long value, final SourceSection sourceSection) {
+      return new IntegerLiteralNode(value).initialize(sourceSection);
     }
 
     /**

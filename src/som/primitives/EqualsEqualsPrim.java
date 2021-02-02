@@ -18,6 +18,7 @@ import som.vmobjects.SArray.SMutableArray;
 import som.vmobjects.SBlock;
 import som.vmobjects.SInvokable;
 import som.vmobjects.SObject.SImmutableObject;
+import som.vmobjects.SObject.SMutableObject;
 import som.vmobjects.SObjectWithClass;
 import som.vmobjects.SObjectWithClass.SObjectWithoutFields;
 import som.vmobjects.SSymbol;
@@ -311,5 +312,18 @@ public abstract class EqualsEqualsPrim extends ComparisonPrim {
   @Specialization
   public final boolean doCondition(final Condition left, final Object right) {
     return left == right;
+  }
+
+  // temp fix for Double == SMutable Object compare for sets
+  @Specialization
+  public final boolean doUnusedCompare(final double left, final SImmutableObject right) {
+    // return ((Double) left).equals(right);
+    return false;
+  }
+
+  @Specialization
+  public final boolean doUnusedCompare(final double left, final SMutableObject right) {
+    // return ((Double) left).equals(right);
+    return false;
   }
 }
