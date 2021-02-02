@@ -31,7 +31,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v2
         with:
-          submodules: 'true'
+          submodules: 'recursive'
         
       # Sets up JDK according to matrix
       - name: Set up JDK
