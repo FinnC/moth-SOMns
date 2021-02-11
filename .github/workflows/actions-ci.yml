@@ -92,7 +92,7 @@ jobs:
         env:
           ACTIONS_TASK: ${{ matrix.task }} 
         run: |
-          if [ "$ACTIONS_TASK" = "core-tests"    ]; then $ANT core-tests    && $ANT serialization-tests && $ANT coverage; fi
+          if [ "$ACTIONS_TASK" = "core-tests"    ]; then $ANT serialization-tests && $ANT coverage; fi
           if [ "$ACTIONS_TASK" = "checkstyle"    ]; then $ANT checkstyle    && $ANT eclipseformat-check; fi
           if [ "$ACTIONS_TASK" = "replay1-tests" ]; then $ANT compile       && ./tests/replay/test.sh 1; fi
           if [ "$ACTIONS_TASK" = "replay2-tests" ]; then $ANT compile       && ./tests/replay/test.sh 2; fi
