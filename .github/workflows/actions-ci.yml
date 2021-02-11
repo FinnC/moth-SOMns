@@ -14,7 +14,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         jdk: [8]
-        task: [core-tests, checkstyle, native, moth-codespeed] # replay1-tests, replay2-tests, snapshot-tests
+        task: [serialization-tests, checkstyle, native, moth-codespeed] # replay1-tests, replay2-tests, snapshot-tests
         include:
           - os: ubuntu-latest
             jdk: 11
@@ -92,7 +92,7 @@ jobs:
         env:
           ACTIONS_TASK: ${{ matrix.task }} 
         run: |
-          if [ "$ACTIONS_TASK" = "core-tests"    ]; then $ANT serialization-tests && $ANT coverage; fi
+          if [ "$ACTIONS_TASK" = "serialization-tests"    ]; then $ANT serialization-tests; fi
           if [ "$ACTIONS_TASK" = "checkstyle"    ]; then $ANT checkstyle    && $ANT eclipseformat-check; fi
           if [ "$ACTIONS_TASK" = "replay1-tests" ]; then $ANT compile       && ./tests/replay/test.sh 1; fi
           if [ "$ACTIONS_TASK" = "replay2-tests" ]; then $ANT compile       && ./tests/replay/test.sh 2; fi
