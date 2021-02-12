@@ -7,14 +7,18 @@ import com.oracle.truffle.api.instrumentation.ProbeNode;
 import com.oracle.truffle.api.instrumentation.Tag;
 import com.oracle.truffle.api.nodes.InvalidAssumptionException;
 import com.oracle.truffle.api.profiles.IntValueProfile;
+import com.oracle.truffle.api.source.SourceSection;
 
+import som.interpreter.nodes.ExceptionSignalingNode;
 import som.interpreter.nodes.dispatch.DispatchGuard.CheckSObject;
 import som.interpreter.objectstorage.StorageAccessor.AbstractObjectAccessor;
 import som.interpreter.objectstorage.StorageAccessor.AbstractPrimitiveAccessor;
+import som.vm.Symbols;
 import som.vm.constants.Nil;
 import som.vmobjects.SObject;
 import tools.dym.Tags.ClassRead;
 import tools.dym.Tags.FieldRead;
+import som.interpreter.nodes.UninitialisedFieldException;
 
 
 /**
@@ -108,6 +112,7 @@ public abstract class CachedSlotRead extends AbstractDispatchNode {
 
     @Override
     public Object read(final SObject rcvr) {
+      UninitialisedFieldException.throwError(sourceSection, null, (e) -> insert(e));
       return Nil.nilObject;
     }
   }
@@ -154,6 +159,7 @@ public abstract class CachedSlotRead extends AbstractDispatchNode {
       if (accessor.isPrimitiveSet(rcvr, primMarkProfile)) {
         return accessor.readLong(rcvr);
       } else {
+        UninitialisedFieldException.throwError(sourceSection, null, (e) -> insert(e));
         return Nil.nilObject;
       }
     }
@@ -175,6 +181,7 @@ public abstract class CachedSlotRead extends AbstractDispatchNode {
         CompilerDirectives.transferToInterpreterAndInvalidate();
         replace(new LongSlotReadSetOrUnset(accessor, type, guardForRcvr,
             nextInCache));
+        UninitialisedFieldException.throwError(sourceSection, null, (e) -> insert(e));
         return Nil.nilObject;
       }
     }
@@ -193,6 +200,7 @@ public abstract class CachedSlotRead extends AbstractDispatchNode {
       if (accessor.isPrimitiveSet(rcvr, primMarkProfile)) {
         return accessor.readDouble(rcvr);
       } else {
+        UninitialisedFieldException.throwError(sourceSection, null, (e) -> insert(e));
         return Nil.nilObject;
       }
     }
@@ -214,6 +222,7 @@ public abstract class CachedSlotRead extends AbstractDispatchNode {
         CompilerDirectives.transferToInterpreterAndInvalidate();
         replace(new DoubleSlotReadSetOrUnset(accessor, type, guardForRcvr,
             nextInCache));
+        UninitialisedFieldException.throwError(sourceSection, null, (e) -> insert(e));
         return Nil.nilObject;
       }
     }
