@@ -37,7 +37,7 @@ insights.
 
 ## Code Style
 
-When working on SOMns code, please look at the code around you and stick to the
+When working on Moth code, please look at the code around you and stick to the
 style. It might be *particular*, but it is consistent in this code base.
 
 To ensure basic compliance with the style, we **use
@@ -51,15 +51,10 @@ See the [STM pull request](https://github.com/smarr/SOMns/pull/81#pullrequestrev
 
 ## Development Support
 
-**Continuous Integration:** To automatically run unit tests for the interpreter, SOMns, and the debugger,
-we use [Travis CI](https://travis-ci.org/smarr/SOMns/builds) (see `.travis.yml`)
-as well as a private GitLab instance to run benchmarks (see `.gitlab-ci.yml`).
+**Continuous Integration:** To automatically run unit tests for the interpreter, Moth, and the debugger,
+we use [GitHub Actions](https://github.com/gracelang/moth-SOMns/actions) (see `.github/workflows`).
 
-In case you forked SOMns on GitHub for your own work, please consider [enabling Travis CI](https://docs.travis-ci.com/user/getting-started/).
-
-The current build status of the release branch is: [![Build Status](https://travis-ci.org/smarr/SOMns.png?branch=release)](https://travis-ci.org/smarr/SOMns)
-
-The status of the development branch `dev` is: [![Build Status](https://travis-ci.org/smarr/SOMns.png?branch=dev)](https://travis-ci.org/smarr/SOMns/tree/dev).
+In case you forked Moth on GitHub for your own work, please consider enabling Actions.
 
 **Performance Tracking:**
 Since one goal of SOMns is to be a platform for research on concurrency with
@@ -80,9 +75,6 @@ performance.
 The benchmark execution is configured with `codespeed.conf` and are executed
 with the [ReBench](https://github.com/smarr/ReBench) tool.
 
-**SOMns Code Coverage:**
-To track code coverage of the SOMns code, we use
-[Coveralls](https://coveralls.io/github/smarr/SOMns).
 
 **Java Code Coverage:**
 To track code coverage of the Java code, we use
