@@ -14,7 +14,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         jdk: [8]
-        task: [core-tests, checkstyle, native, moth-codespeed] # replay1-tests, replay2-tests, snapshot-tests
+        task: [serialization-tests, checkstyle, native] # replay1-tests, replay2-tests, snapshot-tests, moth-codespeed
         include:
           - os: ubuntu-latest
             jdk: 11
@@ -30,6 +30,8 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE
       - name: Checkout repo
         uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
         
       # Sets up JDK according to matrix
       - name: Set up JDK
@@ -90,11 +92,11 @@ jobs:
         env:
           ACTIONS_TASK: ${{ matrix.task }} 
         run: |
-          if [ "$ACTIONS_TASK" = "core-tests"    ]; then $ANT core-tests    && $ANT serialization-tests && $ANT coverage; fi
+          if [ "$ACTIONS_TASK" = "serialization-tests"    ]; then $ANT serialization-tests; fi
           if [ "$ACTIONS_TASK" = "checkstyle"    ]; then $ANT checkstyle    && $ANT eclipseformat-check; fi
           if [ "$ACTIONS_TASK" = "replay1-tests" ]; then $ANT compile       && ./tests/replay/test.sh 1; fi
           if [ "$ACTIONS_TASK" = "replay2-tests" ]; then $ANT compile       && ./tests/replay/test.sh 2; fi
           if [ "$ACTIONS_TASK" = "snapshot-tests" ]; then $ANT compile      && ./tests/snapshot/test.sh; fi
           if [ "$ACTIONS_TASK" = "native"        ]; then $ANT native; fi
-          if [ "$ACTIONS_TASK" = "unit-tests"    ]; then $ANT compile       && ./som core-lib/TestSuite/TestRunner.ns && ./moth -tc grace-lib/Tests/testRunner.grace; fi
+          if [ "$ACTIONS_TASK" = "unit-tests"    ]; then $ANT       && ./som core-lib/TestSuite/TestRunner.ns && ./moth -tc grace-lib/Tests/testRunner.grace; fi
           if [ "$ACTIONS_TASK" = "moth-codespeed" ]; then $ANT compile-moth && alias python=python3 && python2=python3 && rebench -B -S codespeed.conf grace-tests; fi
