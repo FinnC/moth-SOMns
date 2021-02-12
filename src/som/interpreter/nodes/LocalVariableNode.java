@@ -18,6 +18,7 @@ import som.vmobjects.SSymbol;
 import tools.debugger.Tags.LocalVariableTag;
 import tools.dym.Tags.LocalVarRead;
 import tools.dym.Tags.LocalVarWrite;
+import som.interpreter.nodes.UninitialisedFieldException;
 
 
 public abstract class LocalVariableNode extends ExprWithTagsNode
@@ -66,6 +67,7 @@ public abstract class LocalVariableNode extends ExprWithTagsNode
 
     @Specialization(guards = "isUninitialized(frame)")
     public final Object doNil(final VirtualFrame frame) {
+      UninitialisedFieldException.throwError(sourceSection, null, (e) -> insert(e));
       return Nil.nilObject;
     }
 
