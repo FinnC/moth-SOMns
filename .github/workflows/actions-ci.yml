@@ -14,7 +14,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         jdk: [8]
-        task: [serialization-tests, checkstyle, native, moth-codespeed] # replay1-tests, replay2-tests, snapshot-tests
+        task: [serialization-tests, checkstyle, native] # replay1-tests, replay2-tests, snapshot-tests, moth-codespeed
         include:
           - os: ubuntu-latest
             jdk: 11
